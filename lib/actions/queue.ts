@@ -75,24 +75,22 @@ async function attemptMatchmaking(
 
   const eloRange = 200
   // 'any' game_type matches with anyone — build opponent query accordingly
-  let oppQuery = service
+  // Build game_type filter: 'any' matches everyone, specific type matches that type OR anyone who queued 'any'
+  const gameTypeFilter = gameType === 'any'
+    ? ['speed_build', 'clone_battle', 'bug_hunt', 'any']
+    : [gameType as string, 'any']
+
+  const { data: opponents, error: opponentError } = await service
     .from('arena_queue')
     .select('*')
     .eq('mode', mode)
     .eq('status', 'waiting')
     .neq('user_id', userId)
+    .in('game_type', gameTypeFilter)
     .gte('elo', elo - eloRange)
     .lte('elo', elo + eloRange)
     .order('joined_at', { ascending: true })
     .limit(1)
-
-  if (gameType !== 'any') {
-    // Match specific type OR anyone who queued 'any'
-    oppQuery = oppQuery.or(`game_type.eq.${gameType},game_type.eq.any`)
-  }
-  // If gameType === 'any', match with anyone regardless of their game type
-
-  const { data: opponents, error: opponentError } = await oppQuery
 
   if (opponentError) {
     console.error('[matchmaking] opponent query failed:', opponentError.message)

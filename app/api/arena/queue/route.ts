@@ -57,22 +57,21 @@ export async function DELETE() {
 async function attemptMatchmaking(service: any, userId: string, mode: GameMode, gameType: string, elo: number) {
   const eloRange = 200
 
-  let oppQuery = service
+  const gameTypeFilter = gameType === 'any'
+    ? ['speed_build', 'clone_battle', 'bug_hunt', 'any']
+    : [gameType, 'any']
+
+  const { data: opponents, error: opponentError } = await service
     .from('arena_queue')
     .select('*')
     .eq('mode', mode)
     .eq('status', 'waiting')
     .neq('user_id', userId)
+    .in('game_type', gameTypeFilter)
     .gte('elo', elo - eloRange)
     .lte('elo', elo + eloRange)
     .order('joined_at', { ascending: true })
     .limit(1)
-
-  if (gameType !== 'any') {
-    oppQuery = oppQuery.or(`game_type.eq.${gameType},game_type.eq.any`)
-  }
-
-  const { data: opponents, error: opponentError } = await oppQuery
 
   if (opponentError) { console.error('[matchmaking] opponent query:', opponentError.message); return }
   if (!opponents || opponents.length === 0) return
