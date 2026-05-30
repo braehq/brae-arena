@@ -17,7 +17,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   // the opponent's row with the regular client
   const service = createServiceClient()
 
-  const { data: match } = await service
+  const { data: match, error: matchError } = await service
     .from('arena_matches')
     .select(`
       *,
@@ -28,7 +28,10 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     .eq('id', id)
     .single()
 
-  if (!match) notFound()
+  if (matchError || !match) {
+    console.error('[match page] query failed:', matchError?.message, matchError?.code, 'id:', id, 'svcKeySet:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
+    notFound()
+  }
 
   // Verify this user is in the match
   if (match.player_one_id !== user.id && match.player_two_id !== user.id) {
