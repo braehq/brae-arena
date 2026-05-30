@@ -122,3 +122,99 @@ export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
   hard:    'Hard',
   extreme: 'Extreme',
 }
+
+// ─── Phase 2 Types ────────────────────────────────────────────────────────────
+
+export type TournamentStatus = 'upcoming' | 'registration' | 'active' | 'complete' | 'cancelled'
+export type BracketType = 'single_elimination' | 'double_elimination' | 'round_robin'
+export type TournamentMatchStatus = 'pending' | 'waiting_players' | 'active' | 'complete' | 'bye'
+
+export interface ArenaSeason {
+  id: string
+  name: string
+  number: number
+  starts_at: string
+  ends_at: string
+  is_active: boolean
+  created_at: string
+}
+
+export interface ArenaSeasonRanking {
+  id: string
+  season_id: string
+  user_id: string
+  final_elo: number
+  final_tier: RankTier
+  rank_position: number
+  matches_played: number
+  wins: number
+  losses: number
+  created_at: string
+  // joined
+  profile?: Pick<ArenaProfile, 'username' | 'full_name' | 'avatar_url' | 'country'>
+}
+
+export interface ArenaTournament {
+  id: string
+  slug: string
+  name: string
+  description: string | null
+  season_id: string | null
+  game_type: GameType
+  bracket_type: BracketType
+  max_participants: number
+  min_elo: number
+  status: TournamentStatus
+  registration_ends: string | null
+  starts_at: string | null
+  prize_description: string | null
+  created_by: string | null
+  created_at: string
+  // computed / joined
+  participant_count?: number
+}
+
+export interface ArenaTournamentParticipant {
+  id: string
+  tournament_id: string
+  user_id: string
+  seed: number | null
+  status: 'registered' | 'active' | 'eliminated' | 'winner'
+  eliminated_round: number | null
+  registered_at: string
+  // joined
+  profile?: Pick<ArenaProfile, 'username' | 'full_name' | 'avatar_url' | 'arena_elo' | 'arena_rank_tier'>
+}
+
+export interface ArenaTournamentMatch {
+  id: string
+  tournament_id: string
+  match_id: string | null
+  round: number
+  bracket_slot: number
+  player_one_id: string | null
+  player_two_id: string | null
+  winner_id: string | null
+  status: TournamentMatchStatus
+  created_at: string
+  // joined
+  player_one?: Pick<ArenaProfile, 'username' | 'full_name' | 'avatar_url' | 'arena_rank_tier'>
+  player_two?: Pick<ArenaProfile, 'username' | 'full_name' | 'avatar_url' | 'arena_rank_tier'>
+}
+
+export interface ArenaSpectator {
+  id: string
+  match_id: string
+  user_id: string | null
+  joined_at: string
+  left_at: string | null
+}
+
+export interface ArenaMatchEvent {
+  id: string
+  match_id: string
+  user_id: string | null
+  event_type: 'match_started' | 'player_submitted' | 'scoring_started' | 'scoring_complete' | 'match_complete' | 'player_disconnected'
+  payload: Record<string, unknown>
+  occurred_at: string
+}

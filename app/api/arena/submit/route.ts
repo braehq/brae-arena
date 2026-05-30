@@ -88,6 +88,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to save submission' }, { status: 500 })
   }
 
+  // Log player_submitted event for replay
+  await service.from('arena_match_events').insert({
+    match_id: matchId,
+    user_id: user.id,
+    event_type: 'player_submitted',
+    payload: { url: deployedUrl, submitted_at: now.toISOString() },
+  })
+
   // Trigger scoring asynchronously
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? `https://${request.headers.get('host')}`
   fetch(`${appUrl}/api/arena/score`, {

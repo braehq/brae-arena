@@ -39,18 +39,24 @@ export async function Header() {
         </div>
 
         <nav className="hidden items-center gap-6 md:flex">
+          {user && (
+            <Link href="/lobby" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+              Lobby
+            </Link>
+          )}
           <Link href="/leaderboard" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
             Leaderboard
           </Link>
+          <Link href="/seasons" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+            Seasons
+          </Link>
+          <Link href="/tournaments" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+            Tournaments
+          </Link>
           {user && (
-            <>
-              <Link href="/lobby" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
-                Lobby
-              </Link>
-              <Link href="/history" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
-                History
-              </Link>
-            </>
+            <Link href="/history" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+              History
+            </Link>
           )}
         </nav>
 

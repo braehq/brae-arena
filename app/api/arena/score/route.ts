@@ -121,6 +121,8 @@ async function checkAndFinaliseMatch(service: any, matchId: string) {
   if (!((bothSubmitted && allScored) || timedOut)) return
 
   await service.from('arena_matches').update({ status: 'scoring' }).eq('id', matchId)
+  // Log scoring_started event for replay
+  await service.from('arena_match_events').insert({ match_id: matchId, event_type: 'scoring_started', payload: {} })
 
   const p1Sub = submissions.find((s: { user_id: string }) => s.user_id === match.player_one_id)
   const p2Sub = submissions.find((s: { user_id: string }) => s.user_id === match.player_two_id)
@@ -176,6 +178,19 @@ async function checkAndFinaliseMatch(service: any, matchId: string) {
     xp_awarded_p1: xpP1,
     xp_awarded_p2: xpP2,
   }).eq('id', matchId)
+
+  // Log match_complete event for replay
+  await service.from('arena_match_events').insert({
+    match_id: matchId,
+    event_type: 'match_complete',
+    payload: {
+      winner_id: winnerId,
+      p1_score: p1Score,
+      p2_score: p2Score,
+      p1_elo_change: eloP1.change,
+      p2_elo_change: eloP2.change,
+    },
+  })
 
   // Update player profiles
   await service.from('profiles').update({
