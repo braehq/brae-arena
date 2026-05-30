@@ -3,7 +3,6 @@ import { Header } from '@/components/layout/header'
 import { RankBadge } from '@/components/arena/rank-badge'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { createServiceClient } from '@/lib/supabase/server'
 
 const TIERS = ['bronze', 'silver', 'gold', 'platinum', 'diamond', 'mythic'] as const
 
@@ -42,12 +41,7 @@ const GAME_MODES = [
   },
 ]
 
-export default async function LandingPage() {
-  const service = createServiceClient()
-  const [{ count: matchCount }, { count: playerCount }] = await Promise.all([
-    service.from('arena_matches').select('id', { count: 'exact', head: true }).eq('status', 'complete'),
-    service.from('profiles').select('id', { count: 'exact', head: true }).not('username', 'is', null),
-  ])
+export default function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -82,12 +76,13 @@ export default async function LandingPage() {
                 </Link>
               </div>
 
-              {/* Live stats */}
-              <div className="mt-10 flex gap-6 text-sm">
+              {/* Feature highlights */}
+              <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-sm">
                 {[
-                  { value: (matchCount ?? 0) > 0 ? (matchCount ?? 0).toLocaleString() : '—', label: 'matches played' },
                   { value: '25', label: 'challenges' },
-                  { value: (playerCount ?? 0) > 0 ? (playerCount ?? 0).toLocaleString() : '—', label: 'players' },
+                  { value: '4', label: 'game modes' },
+                  { value: '6', label: 'rank tiers' },
+                  { value: 'Free', label: 'to play' },
                 ].map(({ value, label }) => (
                   <div key={label}>
                     <p className="text-xl font-bold text-foreground">{value}</p>
