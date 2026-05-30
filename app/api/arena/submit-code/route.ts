@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
       tests_passed: testsPassed,
       tests_total: testsTotal,
       score_total: scoreTotal,
+      score_speed_bonus: testsPassed === testsTotal ? speedBonus : 0,
       scoring_status: 'complete',
     }, { onConflict: 'match_id,user_id' })
     .select('id')

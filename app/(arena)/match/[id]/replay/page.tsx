@@ -77,11 +77,30 @@ export default async function ReplayPage({ params }: { params: Promise<{ id: str
             {sub && sub.score_total != null ? (
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between"><span className="text-muted-foreground">Score</span><span className="font-bold text-foreground">{sub.score_total}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Performance</span><span>{sub.score_performance ?? '—'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Accessibility</span><span>{sub.score_accessibility ?? '—'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Best Practices</span><span>{sub.score_best_practices ?? '—'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">SEO</span><span>{sub.score_seo ?? '—'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Speed Bonus</span><span>+{sub.score_speed_bonus ?? 0}</span></div>
+                {/* Code challenge — show test results */}
+                {sub.tests_total != null ? (
+                  <>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Tests Passed</span>
+                      <span className={sub.tests_passed === sub.tests_total ? 'text-green-400 font-semibold' : 'text-amber-400'}>
+                        {sub.tests_passed ?? 0}/{sub.tests_total}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Test Score</span><span>{Math.round(((sub.tests_passed ?? 0) / sub.tests_total) * 80)}/80</span></div>
+                  </>
+                ) : (
+                  /* URL submit challenge — show Lighthouse metrics */
+                  <>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Performance</span><span>{sub.score_performance ?? '—'}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Accessibility</span><span>{sub.score_accessibility ?? '—'}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Best Practices</span><span>{sub.score_best_practices ?? '—'}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">SEO</span><span>{sub.score_seo ?? '—'}</span></div>
+                  </>
+                )}
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Speed Bonus</span>
+                  <span>{(sub.score_speed_bonus ?? 0) > 0 ? `+${sub.score_speed_bonus}` : '+0'}</span>
+                </div>
                 {eloChange != null && (
                   <div className={`flex justify-between text-xs font-semibold pt-1 border-t border-border ${eloChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     <span>ELO</span><span>{eloChange >= 0 ? '+' : ''}{eloChange}</span>
