@@ -47,9 +47,6 @@ export async function Header() {
           <Link href="/leaderboard" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
             Leaderboard
           </Link>
-          <Link href="/seasons" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
-            Seasons
-          </Link>
           <Link href="/tournaments" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
             Tournaments
           </Link>

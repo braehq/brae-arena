@@ -55,9 +55,13 @@ export function HeaderClient({ user, profile }: Props) {
   return (
     <div className="flex items-center gap-3">
       {profile && (
-        <div className="hidden items-center gap-2 md:flex">
+        <Link
+          href="/elo"
+          className="hidden items-center gap-2 md:flex rounded-lg px-2 py-1 hover:bg-secondary transition-colors"
+          title="How ELO works"
+        >
           <RankBadge tier={profile.arena_rank_tier} elo={profile.arena_elo} size="sm" />
-        </div>
+        </Link>
       )}
       <DropdownMenu>
         <DropdownMenuTrigger className="flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-primary/50">

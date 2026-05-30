@@ -15,8 +15,9 @@ export default async function LeaderboardPage() {
     .from('profiles')
     .select('id, username, full_name, country, arena_elo, arena_rank_tier, arena_wins, arena_losses, arena_matches_played, total_xp, arena_streak')
     .order('arena_elo', { ascending: false })
-    .gt('arena_matches_played', 0)
-    .limit(100)
+    .order('arena_matches_played', { ascending: false })
+    .not('username', 'is', null)
+    .limit(200)
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -25,7 +26,7 @@ export default async function LeaderboardPage() {
         <div className="mx-auto max-w-4xl px-4 py-10">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground">Leaderboard</h1>
-            <p className="mt-1 text-muted-foreground">Top {players?.length ?? 0} ranked players by ELO</p>
+            <p className="mt-1 text-muted-foreground">{players?.length ?? 0} players · sorted by ELO · all players start at 1,000</p>
           </div>
 
           {(!players || players.length === 0) ? (
