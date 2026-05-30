@@ -43,10 +43,9 @@ function LoginFormInner() {
         {/* Logo */}
         <div className="mb-8 flex justify-center">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-              <span className="text-sm font-bold text-white">BA</span>
-            </div>
-            <span className="font-semibold text-foreground">Brae Arena</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="Brae" className="h-9 w-auto mix-blend-multiply dark:mix-blend-screen" />
+            <span className="font-semibold text-foreground">Arena</span>
           </Link>
         </div>
 
