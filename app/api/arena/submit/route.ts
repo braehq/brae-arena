@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid URL' }, { status: 400 })
   }
 
-  const service = await createServiceClient()
+  const service = createServiceClient()
 
   // Fetch match
   const { data: match } = await service

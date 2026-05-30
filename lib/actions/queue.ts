@@ -71,7 +71,7 @@ async function attemptMatchmaking(
   gameType: GameType,
   elo: number
 ) {
-  const service = await createServiceClient()
+  const service = createServiceClient()
 
   const eloRange = 200
   const { data: opponents, error: opponentError } = await service

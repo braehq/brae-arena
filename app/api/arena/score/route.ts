@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { submissionId, matchId } = await request.json()
-  const service = await createServiceClient()
+  const service = createServiceClient()
 
   // Mark submission as running
   await service.from('arena_submissions').update({ scoring_status: 'running' }).eq('id', submissionId)

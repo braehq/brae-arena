@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
   if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
 
-  const service = await createServiceClient()
+  const service = createServiceClient()
 
   await service
     .from('arena_queue')
