@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { RankBadge } from '@/components/arena/rank-badge'
 import type { Metadata } from 'next'
@@ -10,7 +10,8 @@ export default async function HistoryPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: matches } = await supabase
+  const service = createServiceClient()
+  const { data: matches } = await service
     .from('arena_matches')
     .select(`
       id, mode, game_type, status, winner_id, elo_change_p1, elo_change_p2, xp_awarded_p1, xp_awarded_p2, player_one_id, created_at,

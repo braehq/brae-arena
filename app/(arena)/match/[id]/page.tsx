@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import { MatchRoom } from './_components/match-room'
 import type { Metadata } from 'next'
@@ -7,10 +7,17 @@ export const metadata: Metadata = { title: 'Match' }
 
 export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+
+  // Auth check with user client (respects RLS)
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
-  const { data: match } = await supabase
+  // Fetch match data with service client — profiles RLS would block reading
+  // the opponent's row with the regular client
+  const service = createServiceClient()
+
+  const { data: match } = await service
     .from('arena_matches')
     .select(`
       *,
@@ -24,11 +31,11 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   if (!match) notFound()
 
   // Verify this user is in the match
-  if (match.player_one_id !== user!.id && match.player_two_id !== user!.id) {
+  if (match.player_one_id !== user.id && match.player_two_id !== user.id) {
     redirect('/lobby')
   }
 
-  const { data: submissions } = await supabase
+  const { data: submissions } = await service
     .from('arena_submissions')
     .select('*')
     .eq('match_id', id)

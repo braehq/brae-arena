@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { SpectateRoom } from './_components/spectate-room'
 
 export const metadata: Metadata = { title: 'Spectating' }
@@ -9,8 +9,9 @@ export default async function SpectatePage({ params }: { params: Promise<{ id: s
   const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  const service = createServiceClient()
 
-  const { data: match } = await supabase
+  const { data: match } = await service
     .from('arena_matches')
     .select(`
       *,
@@ -35,21 +36,21 @@ export default async function SpectatePage({ params }: { params: Promise<{ id: s
 
   // Log spectator join (best-effort, no auth required for viewing)
   if (user) {
-    await supabase.from('arena_spectators').upsert(
+    await service.from('arena_spectators').upsert(
       { match_id: id, user_id: user.id, joined_at: new Date().toISOString(), left_at: null },
       { onConflict: 'match_id,user_id' }
     )
   }
 
   // Spectator count
-  const { count: spectatorCount } = await supabase
+  const { count: spectatorCount } = await service
     .from('arena_spectators')
     .select('id', { count: 'exact', head: true })
     .eq('match_id', id)
     .is('left_at', null)
 
   // Submissions (if match is complete, show scores)
-  const { data: submissions } = await supabase
+  const { data: submissions } = await service
     .from('arena_submissions')
     .select('*')
     .eq('match_id', id)

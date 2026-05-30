@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { Header } from '@/components/layout/header'
 import { RankBadge } from '@/components/arena/rank-badge'
@@ -18,17 +18,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProfilePage({ params }: Props) {
   const { username } = await params
-  const supabase = await createClient()
+  const service = createServiceClient()
 
   // Try username first, then fall back to id
-  let { data: profile } = await supabase
+  let { data: profile } = await service
     .from('profiles')
     .select('id, username, full_name, country, arena_elo, arena_rank_tier, arena_wins, arena_losses, arena_streak, arena_matches_played, total_xp, created_at')
     .eq('username', username)
     .single()
 
   if (!profile) {
-    ({ data: profile } = await supabase
+    ({ data: profile } = await service
       .from('profiles')
       .select('id, username, full_name, country, arena_elo, arena_rank_tier, arena_wins, arena_losses, arena_streak, arena_matches_played, total_xp, created_at')
       .eq('id', username)
@@ -37,7 +37,7 @@ export default async function ProfilePage({ params }: Props) {
 
   if (!profile) notFound()
 
-  const { data: recentMatches } = await supabase
+  const { data: recentMatches } = await service
     .from('arena_matches')
     .select(`
       id, mode, game_type, status, winner_id, created_at,

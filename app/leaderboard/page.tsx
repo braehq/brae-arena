@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { Header } from '@/components/layout/header'
 import { RankBadge } from '@/components/arena/rank-badge'
 import Link from 'next/link'
@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: 'Leaderboard' }
 export const revalidate = 60
 
 export default async function LeaderboardPage() {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: players } = await supabase
     .from('profiles')
