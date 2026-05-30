@@ -15,8 +15,9 @@ export default async function LobbyPage() {
       .single(),
     supabase.from('arena_queue').select('id', { count: 'exact', head: true }).eq('status', 'waiting'),
     supabase.from('profiles')
-      .select('id, username, full_name, arena_elo, arena_rank_tier, arena_wins, arena_losses')
+      .select('id, username, full_name, country, arena_elo, arena_rank_tier, arena_wins, arena_losses')
       .order('arena_elo', { ascending: false })
+      .not('username', 'is', null)
       .limit(5),
   ])
 

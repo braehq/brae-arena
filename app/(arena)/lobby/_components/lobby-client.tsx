@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { RankBadge } from '@/components/arena/rank-badge'
 import type { GameMode, GameType, RankTier } from '@/types/arena'
 import { GAME_TYPE_LABELS } from '@/types/arena'
+import { countryFlag } from '@/lib/country-flag'
 
 const GAME_TYPES: GameType[] = ['speed_build', 'clone_battle', 'bug_hunt']
 const GAME_TYPE_ICONS: Record<GameType, string> = {
@@ -36,6 +37,7 @@ interface Props {
     id: string
     username: string | null
     full_name: string | null
+    country: string | null
     arena_elo: number
     arena_rank_tier: RankTier
     arena_wins: number
@@ -183,7 +185,14 @@ export function LobbyClient({ profile, queueCount, topPlayers }: Props) {
                 >
                   <span className="w-5 text-center text-xs font-bold text-muted-foreground">#{i + 1}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground">{name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="truncate text-sm font-medium text-foreground">{name}</p>
+                      {player.country && (
+                        <span className="shrink-0 text-sm leading-none" title={player.country}>
+                          {countryFlag(player.country)}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">{wr}% win rate</p>
                   </div>
                   <RankBadge tier={player.arena_rank_tier} elo={player.arena_elo} size="sm" showElo={false} />
