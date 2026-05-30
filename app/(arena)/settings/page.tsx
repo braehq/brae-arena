@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
+import { countryFlag } from '@/lib/country-flag'
 
 export const metadata: Metadata = { title: 'Settings' }
 
@@ -33,7 +34,14 @@ export default async function SettingsPage() {
         </div>
         <div className="space-y-1">
           <p className="text-sm text-muted-foreground">Country</p>
-          <p className="text-sm text-foreground">{profile?.country ?? '—'}</p>
+          <p className="text-sm text-foreground flex items-center gap-2">
+            {profile?.country ? (
+              <>
+                <span className="text-xl leading-none">{countryFlag(profile.country)}</span>
+                <span>{profile.country}</span>
+              </>
+            ) : '—'}
+          </p>
         </div>
         <p className="text-xs text-muted-foreground pt-2">
           To update profile details, visit your{' '}

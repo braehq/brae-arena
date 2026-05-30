@@ -3,6 +3,7 @@ import { Header } from '@/components/layout/header'
 import { RankBadge } from '@/components/arena/rank-badge'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { countryFlag } from '@/lib/country-flag'
 
 export const metadata: Metadata = { title: 'Leaderboard' }
 export const revalidate = 60
@@ -62,15 +63,19 @@ export default async function LeaderboardPage() {
                           {medal ?? `#${i + 1}`}
                         </td>
                         <td className="px-4 py-3">
-                          <Link
-                            href={`/profile/${player.username ?? player.id}`}
-                            className="font-medium text-foreground hover:text-primary transition-colors"
-                          >
-                            {name}
-                          </Link>
-                          {player.country && (
-                            <span className="ml-2 text-xs text-muted-foreground">{player.country}</span>
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            <Link
+                              href={`/profile/${player.username ?? player.id}`}
+                              className="font-medium text-foreground hover:text-primary transition-colors"
+                            >
+                              {name}
+                            </Link>
+                            {player.country && (
+                              <span className="text-base leading-none" title={player.country}>
+                                {countryFlag(player.country)}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 hidden sm:table-cell">
                           <RankBadge tier={player.arena_rank_tier} elo={player.arena_elo} size="sm" />

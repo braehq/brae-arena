@@ -5,6 +5,7 @@ import { RankBadge } from '@/components/arena/rank-badge'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { GAME_TYPE_LABELS } from '@/types/arena'
+import { countryFlag } from '@/lib/country-flag'
 
 export const revalidate = 60
 
@@ -66,8 +67,12 @@ export default async function ProfilePage({ params }: Props) {
               {displayName.slice(0, 2).toUpperCase()}
             </div>
             <div className="flex-1">
-              <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>
-              {profile.country && <p className="text-sm text-muted-foreground">{profile.country}</p>}
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>
+                {profile.country && (
+                  <span className="text-2xl" title={profile.country}>{countryFlag(profile.country)}</span>
+                )}
+              </div>
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 <RankBadge tier={profile.arena_rank_tier} elo={profile.arena_elo} size="md" />
                 {profile.arena_streak > 2 && (

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { RankBadge } from '@/components/arena/rank-badge'
 import type { RankTier } from '@/types/arena'
+import { countryFlag } from '@/lib/country-flag'
 
 export const metadata: Metadata = { title: 'Seasons' }
 
@@ -19,12 +20,12 @@ export default async function SeasonsPage() {
     rank_position: number
     final_elo: number
     final_tier: string
-    profile: { username: string | null; full_name: string | null; avatar_url: string | null } | null
+    profile: { username: string | null; full_name: string | null; avatar_url: string | null; country: string | null } | null
   }[] = []
   if (activeSeason) {
     const { data } = await supabase
       .from('profiles')
-      .select('username, full_name, avatar_url, arena_elo, arena_rank_tier')
+      .select('username, full_name, avatar_url, country, arena_elo, arena_rank_tier')
       .order('arena_elo', { ascending: false })
       .limit(10)
 
@@ -32,7 +33,7 @@ export default async function SeasonsPage() {
       rank_position: i + 1,
       final_elo: p.arena_elo,
       final_tier: p.arena_rank_tier,
-      profile: { username: p.username, full_name: p.full_name, avatar_url: p.avatar_url },
+      profile: { username: p.username, full_name: p.full_name, avatar_url: p.avatar_url, country: p.country },
     }))
   }
 
@@ -84,12 +85,17 @@ export default async function SeasonsPage() {
                   r.rank_position === 3 ? 'text-amber-600' : 'text-muted-foreground'
                 }`}>#{r.rank_position}</span>
                 <div className="flex-1 min-w-0">
-                  <Link
-                    href={`/profile/${r.profile?.username ?? ''}`}
-                    className="truncate text-sm font-medium text-foreground hover:text-primary transition-colors"
-                  >
-                    {r.profile?.username ?? r.profile?.full_name ?? 'Unknown'}
-                  </Link>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Link
+                      href={`/profile/${r.profile?.username ?? ''}`}
+                      className="truncate text-sm font-medium text-foreground hover:text-primary transition-colors"
+                    >
+                      {r.profile?.username ?? r.profile?.full_name ?? 'Unknown'}
+                    </Link>
+                    {r.profile?.country && (
+                      <span className="shrink-0 text-sm" title={r.profile.country}>{countryFlag(r.profile.country)}</span>
+                    )}
+                  </div>
                 </div>
                 <RankBadge tier={r.final_tier as RankTier} size="sm" />
                 <span className="font-mono text-sm font-semibold text-foreground w-14 text-right">{r.final_elo}</span>

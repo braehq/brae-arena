@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { RankBadge } from '@/components/arena/rank-badge'
 import type { RankTier } from '@/types/arena'
+import { countryFlag } from '@/lib/country-flag'
 
 export const metadata: Metadata = { title: 'Season Rankings' }
 
@@ -67,12 +68,17 @@ export default async function SeasonPage({ params }: { params: Promise<{ id: str
                   )}
 
                   <div className="flex-1 min-w-0">
-                    <Link
-                      href={`/profile/${profile?.username ?? ''}`}
-                      className="truncate text-sm font-medium text-foreground hover:text-primary transition-colors"
-                    >
-                      {profile?.username ?? profile?.full_name ?? 'Unknown'}
-                    </Link>
+                    <div className="flex items-center gap-1.5">
+                      <Link
+                        href={`/profile/${profile?.username ?? ''}`}
+                        className="truncate text-sm font-medium text-foreground hover:text-primary transition-colors"
+                      >
+                        {profile?.username ?? profile?.full_name ?? 'Unknown'}
+                      </Link>
+                      {profile?.country && (
+                        <span className="shrink-0 text-sm" title={profile.country}>{countryFlag(profile.country)}</span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">{r.wins}W – {r.losses}L</p>
                   </div>
 
