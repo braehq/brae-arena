@@ -44,6 +44,10 @@ export async function Header() {
               Lobby
             </Link>
           )}
+          <Link href="/daily" className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+            Daily
+            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+          </Link>
           <Link href="/leaderboard" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
             Leaderboard
           </Link>

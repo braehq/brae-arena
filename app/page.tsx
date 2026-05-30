@@ -295,6 +295,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-4 flex items-center justify-between text-sm text-muted-foreground">
           <span>Brae Arena · Part of the <a href="https://braehq.co" className="text-foreground hover:text-primary transition-colors" target="_blank" rel="noopener noreferrer">BRAE ecosystem</a></span>
           <div className="flex gap-4 text-xs">
+            <Link href="/daily" className="hover:text-foreground transition-colors">Daily</Link>
             <Link href="/leaderboard" className="hover:text-foreground transition-colors">Leaderboard</Link>
             <Link href="/elo" className="hover:text-foreground transition-colors">ELO System</Link>
             <Link href="/tournaments" className="hover:text-foreground transition-colors">Tournaments</Link>

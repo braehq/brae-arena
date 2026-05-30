@@ -76,6 +76,9 @@ export function HeaderClient({ user, profile }: Props) {
             <p className="text-xs text-muted-foreground">{user.email}</p>
           </div>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => router.push('/daily')}>
+            Daily Challenge
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => router.push(`/profile/${profile?.username ?? user.id}`)}>
             Profile
           </DropdownMenuItem>
