@@ -54,14 +54,13 @@ export async function DELETE() {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function attemptMatchmaking(service: any, userId: string, mode: GameMode, gameType: GameType, elo: number) {
+async function attemptMatchmaking(service: any, userId: string, mode: GameMode, gameType: string, elo: number) {
   const eloRange = 200
 
-  const { data: opponents, error: opponentError } = await service
+  let oppQuery = service
     .from('arena_queue')
     .select('*')
     .eq('mode', mode)
-    .eq('game_type', gameType)
     .eq('status', 'waiting')
     .neq('user_id', userId)
     .gte('elo', elo - eloRange)
@@ -69,20 +68,30 @@ async function attemptMatchmaking(service: any, userId: string, mode: GameMode, 
     .order('joined_at', { ascending: true })
     .limit(1)
 
+  if (gameType !== 'any') {
+    oppQuery = oppQuery.or(`game_type.eq.${gameType},game_type.eq.any`)
+  }
+
+  const { data: opponents, error: opponentError } = await oppQuery
+
   if (opponentError) { console.error('[matchmaking] opponent query:', opponentError.message); return }
   if (!opponents || opponents.length === 0) return
 
   const opponent = opponents[0]
 
+  const resolvedGameType = gameType === 'any'
+    ? (opponent.game_type === 'any' ? (['speed_build', 'clone_battle', 'bug_hunt'] as const)[Math.floor(Math.random() * 3)] : opponent.game_type)
+    : gameType
+
   const { data: challenges, error: challengeError } = await service
     .from('arena_challenges')
     .select('id, time_limit_mins')
-    .eq('mode', gameType)
+    .eq('mode', resolvedGameType)
     .eq('active', true)
 
   if (challengeError) { console.error('[matchmaking] challenge query:', challengeError.message); return }
   if (!challenges || challenges.length === 0) {
-    console.error('[matchmaking] no active challenges for:', gameType)
+    console.error('[matchmaking] no active challenges for:', resolvedGameType)
     return
   }
 
@@ -97,7 +106,7 @@ async function attemptMatchmaking(service: any, userId: string, mode: GameMode, 
       player_one_id: userId,
       player_two_id: opponent.user_id,
       mode,
-      game_type: gameType,
+      game_type: resolvedGameType,
       status: 'active',
       started_at: now.toISOString(),
       ends_at: endsAt.toISOString(),

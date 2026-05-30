@@ -1,6 +1,7 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import { MatchRoom } from './_components/match-room'
+import { MatchRoomCode } from '@/components/arena/match-room-code'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Match' }
@@ -19,7 +20,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
   const [{ data: match }, { data: challenge }] = await Promise.all([
     service.from('arena_matches').select('*').eq('id', id).single(),
-    service.from('arena_matches').select('challenge:arena_challenges(*)').eq('id', id).single(),
+    service.from('arena_matches').select('challenge:arena_challenges(*, challenge_type, starter_code, language, test_cases, target_image_url)').eq('id', id).single(),
   ])
 
   if (!match) {
@@ -44,6 +45,19 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     challenge: (challenge as { challenge?: unknown } | null)?.challenge ?? null,
     player_one: p1Profile,
     player_two: p2Profile,
+  }
+
+  const challengeData = (challenge as { challenge?: { challenge_type?: string } } | null)?.challenge
+  const isCodeChallenge = challengeData?.challenge_type && challengeData.challenge_type !== 'url_submit'
+
+  if (isCodeChallenge) {
+    return (
+      <MatchRoomCode
+        match={matchWithProfiles as Parameters<typeof MatchRoomCode>[0]['match']}
+        currentUserId={user!.id}
+        initialSubmissions={submissions ?? []}
+      />
+    )
   }
 
   return (

@@ -10,6 +10,22 @@ import { Badge } from '@/components/ui/badge'
 import { RankBadge } from '@/components/arena/rank-badge'
 import type { GameMode, GameType, RankTier } from '@/types/arena'
 import { GAME_TYPE_LABELS } from '@/types/arena'
+
+type QueueGameType = GameType | 'any'
+
+const QUEUE_GAME_TYPES: QueueGameType[] = ['any', 'speed_build', 'clone_battle', 'bug_hunt']
+const QUEUE_GAME_TYPE_LABELS: Record<QueueGameType, string> = {
+  any:          '🎲 Any',
+  speed_build:  '⚡ Speed Build',
+  clone_battle: '🎯 Clone Battle',
+  bug_hunt:     '🐛 Bug Hunt',
+}
+const QUEUE_GAME_TYPE_DESC: Record<QueueGameType, string> = {
+  any:          'Match with anyone regardless of game type',
+  speed_build:  'Same prompt, same clock. Best score wins.',
+  clone_battle: 'Recreate a given UI as accurately as possible.',
+  bug_hunt:     'Fix a broken project. Tests decide the winner.',
+}
 import { countryFlag } from '@/lib/country-flag'
 
 const GAME_TYPES: GameType[] = ['speed_build', 'clone_battle', 'bug_hunt']
@@ -48,7 +64,7 @@ interface Props {
 export function LobbyClient({ profile, queueCount, topPlayers }: Props) {
   const router = useRouter()
   const [mode, setMode] = useState<GameMode>('ranked')
-  const [gameType, setGameType] = useState<GameType>('speed_build')
+  const [gameType, setGameType] = useState<QueueGameType>('any')
   const [loading, setLoading] = useState(false)
 
   async function handleJoinQueue() {
@@ -122,8 +138,8 @@ export function LobbyClient({ profile, queueCount, topPlayers }: Props) {
             {/* Game type selector */}
             <div className="mb-6">
               <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Game type</p>
-              <div className="grid grid-cols-3 gap-2">
-                {GAME_TYPES.map(gt => (
+              <div className="grid grid-cols-2 gap-2">
+                {QUEUE_GAME_TYPES.map(gt => (
                   <button
                     key={gt}
                     onClick={() => setGameType(gt)}
@@ -131,12 +147,12 @@ export function LobbyClient({ profile, queueCount, topPlayers }: Props) {
                       gameType === gt
                         ? 'border-primary bg-primary/10'
                         : 'border-border bg-card hover:border-primary/30'
-                    }`}
+                    } ${gt === 'any' ? 'col-span-2' : ''}`}
                   >
-                    <span className="text-xl">{GAME_TYPE_ICONS[gt]}</span>
-                    <p className={`mt-1 text-xs font-medium ${gameType === gt ? 'text-primary' : 'text-foreground'}`}>
-                      {GAME_TYPE_LABELS[gt]}
+                    <p className={`text-sm font-semibold ${gameType === gt ? 'text-primary' : 'text-foreground'}`}>
+                      {QUEUE_GAME_TYPE_LABELS[gt]}
                     </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{QUEUE_GAME_TYPE_DESC[gt]}</p>
                   </button>
                 ))}
               </div>

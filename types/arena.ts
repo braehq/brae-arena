@@ -1,6 +1,7 @@
 export type RankTier = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'mythic'
 export type GameMode = 'ranked' | 'casual'
 export type GameType = 'speed_build' | 'clone_battle' | 'bug_hunt'
+export type QueueGameType = GameType | 'any'
 export type MatchStatus = 'pending' | 'active' | 'scoring' | 'complete' | 'cancelled' | 'draw'
 export type QueueStatus = 'waiting' | 'matched' | 'cancelled'
 export type ScoringStatus = 'pending' | 'running' | 'complete' | 'failed'
@@ -93,6 +94,11 @@ export interface ArenaSubmission {
   score_total: number | null
   scoring_status: ScoringStatus
   error_message: string | null
+  // In-browser game fields
+  submitted_code: string | null
+  test_results: Record<string, unknown>[] | null
+  tests_passed: number | null
+  tests_total: number | null
 }
 
 export interface EloResult {

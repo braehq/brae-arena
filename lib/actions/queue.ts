@@ -1,9 +1,9 @@
 'use server'
 
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import type { GameMode, GameType } from '@/types/arena'
+import type { GameMode, GameType, QueueGameType } from '@/types/arena'
 
-export async function joinQueue(mode: GameMode, gameType: GameType) {
+export async function joinQueue(mode: GameMode, gameType: QueueGameType) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
@@ -68,23 +68,31 @@ export async function getQueueEntry() {
 async function attemptMatchmaking(
   userId: string,
   mode: GameMode,
-  gameType: GameType,
+  gameType: QueueGameType,
   elo: number
 ) {
   const service = createServiceClient()
 
   const eloRange = 200
-  const { data: opponents, error: opponentError } = await service
+  // 'any' game_type matches with anyone — build opponent query accordingly
+  let oppQuery = service
     .from('arena_queue')
     .select('*')
     .eq('mode', mode)
-    .eq('game_type', gameType)
     .eq('status', 'waiting')
     .neq('user_id', userId)
     .gte('elo', elo - eloRange)
     .lte('elo', elo + eloRange)
     .order('joined_at', { ascending: true })
     .limit(1)
+
+  if (gameType !== 'any') {
+    // Match specific type OR anyone who queued 'any'
+    oppQuery = oppQuery.or(`game_type.eq.${gameType},game_type.eq.any`)
+  }
+  // If gameType === 'any', match with anyone regardless of their game type
+
+  const { data: opponents, error: opponentError } = await oppQuery
 
   if (opponentError) {
     console.error('[matchmaking] opponent query failed:', opponentError.message)
@@ -94,10 +102,15 @@ async function attemptMatchmaking(
 
   const opponent = opponents[0]
 
+  // Resolve actual game_type for the match (handle 'any')
+  const resolvedGameType = gameType === 'any'
+    ? (opponent.game_type === 'any' ? (['speed_build', 'clone_battle', 'bug_hunt'] as const)[Math.floor(Math.random() * 3)] : opponent.game_type)
+    : gameType
+
   const { data: challenges, error: challengeError } = await service
     .from('arena_challenges')
     .select('id, time_limit_mins')
-    .eq('mode', gameType)
+    .eq('mode', resolvedGameType)
     .eq('active', true)
 
   if (challengeError) {
@@ -105,11 +118,12 @@ async function attemptMatchmaking(
     return
   }
   if (!challenges || challenges.length === 0) {
-    console.error('[matchmaking] no active challenges for game_type:', gameType)
+    console.error('[matchmaking] no active challenges for game_type:', resolvedGameType)
     return
   }
 
   const challenge = challenges[Math.floor(Math.random() * challenges.length)]
+
   const now = new Date()
   const endsAt = new Date(now.getTime() + challenge.time_limit_mins * 60 * 1000)
 
