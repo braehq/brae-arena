@@ -1,0 +1,7 @@
+-- 22 new in-browser challenges seeded via Supabase MCP apply_migration
+-- See migration 013 for schema changes that support these fields
+-- Total after this migration: 25 active challenges
+--   code_duel: 13 (6 easy, 5 medium, 4 hard)
+--   bug_hunt_code: 5 (2 easy, 2 medium, 1 hard)
+--   css_battle: 5 (3 easy, 2 medium)
+-- Applied 2026-05-30
