@@ -57,6 +57,22 @@ export function QueueClient({ queueEntry }: Props) {
     return () => { supabase.removeChannel(channel) }
   }, [queueEntry.user_id, handleMatchFound])
 
+  // Polling fallback — check every 3s in case Realtime misses an event
+  useEffect(() => {
+    const supabase = createClient()
+    const interval = setInterval(async () => {
+      const { data } = await supabase
+        .from('arena_queue')
+        .select('status, match_id')
+        .eq('user_id', queueEntry.user_id)
+        .single()
+      if (data?.status === 'matched' && data.match_id) {
+        handleMatchFound(data.match_id)
+      }
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [queueEntry.user_id, handleMatchFound])
+
   async function handleLeave() {
     setLeaving(true)
     await leaveQueue()

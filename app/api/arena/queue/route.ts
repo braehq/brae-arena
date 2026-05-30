@@ -57,7 +57,7 @@ export async function DELETE() {
 async function attemptMatchmaking(service: any, userId: string, mode: GameMode, gameType: GameType, elo: number) {
   const eloRange = 200
 
-  const { data: opponents } = await service
+  const { data: opponents, error: opponentError } = await service
     .from('arena_queue')
     .select('*')
     .eq('mode', mode)
@@ -69,24 +69,28 @@ async function attemptMatchmaking(service: any, userId: string, mode: GameMode, 
     .order('joined_at', { ascending: true })
     .limit(1)
 
+  if (opponentError) { console.error('[matchmaking] opponent query:', opponentError.message); return }
   if (!opponents || opponents.length === 0) return
 
   const opponent = opponents[0]
 
-  const { data: challenges } = await service
+  const { data: challenges, error: challengeError } = await service
     .from('arena_challenges')
     .select('id, time_limit_mins')
     .eq('mode', gameType)
     .eq('active', true)
 
-  if (!challenges || challenges.length === 0) return
+  if (challengeError) { console.error('[matchmaking] challenge query:', challengeError.message); return }
+  if (!challenges || challenges.length === 0) {
+    console.error('[matchmaking] no active challenges for:', gameType)
+    return
+  }
 
   const challenge = challenges[Math.floor(Math.random() * challenges.length)]
-
   const now = new Date()
   const endsAt = new Date(now.getTime() + challenge.time_limit_mins * 60 * 1000)
 
-  const { data: match, error } = await service
+  const { data: match, error: matchError } = await service
     .from('arena_matches')
     .insert({
       challenge_id: challenge.id,
@@ -101,10 +105,12 @@ async function attemptMatchmaking(service: any, userId: string, mode: GameMode, 
     .select('id')
     .single()
 
-  if (error || !match) return
+  if (matchError || !match) { console.error('[matchmaking] match insert:', matchError?.message); return }
 
-  await service
+  const { error: updateError } = await service
     .from('arena_queue')
     .update({ status: 'matched', match_id: match.id })
     .in('user_id', [userId, opponent.user_id])
+
+  if (updateError) console.error('[matchmaking] queue update:', updateError.message)
 }

@@ -73,9 +73,8 @@ async function attemptMatchmaking(
 ) {
   const service = await createServiceClient()
 
-  // Find waiting opponent within ELO range (starts at ±200, expand later via cron)
   const eloRange = 200
-  const { data: opponents } = await service
+  const { data: opponents, error: opponentError } = await service
     .from('arena_queue')
     .select('*')
     .eq('mode', mode)
@@ -87,25 +86,33 @@ async function attemptMatchmaking(
     .order('joined_at', { ascending: true })
     .limit(1)
 
+  if (opponentError) {
+    console.error('[matchmaking] opponent query failed:', opponentError.message)
+    return
+  }
   if (!opponents || opponents.length === 0) return
 
   const opponent = opponents[0]
 
-  // Pick a random active challenge for this game type
-  const { data: challenges } = await service
+  const { data: challenges, error: challengeError } = await service
     .from('arena_challenges')
     .select('id, time_limit_mins')
     .eq('mode', gameType)
     .eq('active', true)
 
-  if (!challenges || challenges.length === 0) return
+  if (challengeError) {
+    console.error('[matchmaking] challenge query failed:', challengeError.message)
+    return
+  }
+  if (!challenges || challenges.length === 0) {
+    console.error('[matchmaking] no active challenges for game_type:', gameType)
+    return
+  }
 
   const challenge = challenges[Math.floor(Math.random() * challenges.length)]
-
   const now = new Date()
   const endsAt = new Date(now.getTime() + challenge.time_limit_mins * 60 * 1000)
 
-  // Create the match
   const { data: match, error: matchError } = await service
     .from('arena_matches')
     .insert({
@@ -121,11 +128,18 @@ async function attemptMatchmaking(
     .select('id')
     .single()
 
-  if (matchError || !match) return
+  if (matchError || !match) {
+    console.error('[matchmaking] match insert failed:', matchError?.message)
+    return
+  }
 
-  // Update both queue entries
-  await service
+  // Update both queue entries to matched
+  const { error: updateError } = await service
     .from('arena_queue')
     .update({ status: 'matched', match_id: match.id })
     .in('user_id', [userId, opponent.user_id])
+
+  if (updateError) {
+    console.error('[matchmaking] queue update failed:', updateError.message)
+  }
 }
