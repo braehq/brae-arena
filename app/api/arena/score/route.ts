@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { sendMatchResult, sendRankUp } from '@/lib/email/send'
+import { RANK_TIERS } from '@/types/arena'
+import type { RankTier } from '@/types/arena'
 import {
   runLighthouseScore,
   checkDeploymentReachable,
@@ -212,4 +215,65 @@ async function checkAndFinaliseMatch(service: any, matchId: string) {
     arena_streak: p2NewStreak,
     total_xp: p2Profile.total_xp + xpP2,
   }).eq('id', match.player_two_id)
+
+  // Send result emails + rank-up emails (fire-and-forget)
+  sendResultEmails(service, match, {
+    p1Id: match.player_one_id, p1Result, p1Sub, p1Score, eloP1, xpP1, p1Profile,
+    p2Id: match.player_two_id, p2Result, p2Sub, p2Score, eloP2, xpP2, p2Profile,
+  }).catch(() => {})
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function sendResultEmails(service: any, match: any, data: any) {
+  const [p1Auth, p2Auth, p1Profile, p2Profile] = await Promise.all([
+    service.auth.admin.getUserById(data.p1Id).then((r: { data: { user: { email?: string } } }) => r.data?.user),
+    service.auth.admin.getUserById(data.p2Id).then((r: { data: { user: { email?: string } } }) => r.data?.user),
+    service.from('profiles').select('username, full_name').eq('id', data.p1Id).single().then((r: { data: unknown }) => r.data),
+    service.from('profiles').select('username, full_name').eq('id', data.p2Id).single().then((r: { data: unknown }) => r.data),
+  ])
+
+  const p1Name = (p1Profile as { username?: string; full_name?: string } | null)?.username ?? (p1Profile as { username?: string; full_name?: string } | null)?.full_name ?? 'Player'
+  const p2Name = (p2Profile as { username?: string; full_name?: string } | null)?.username ?? (p2Profile as { username?: string; full_name?: string } | null)?.full_name ?? 'Player'
+
+  const sends: Promise<void>[] = []
+
+  for (const [auth, result, sub, score, oppScore, oppName, elo, xp, oldProfile] of [
+    [p1Auth, data.p1Result, data.p1Sub, data.p1Score, data.p2Score, p2Name, data.eloP1, data.xpP1, data.p1Profile],
+    [p2Auth, data.p2Result, data.p2Sub, data.p2Score, data.p1Score, p1Name, data.eloP2, data.xpP2, data.p2Profile],
+  ] as const) {
+    const email = (auth as { email?: string } | null)?.email
+    if (!email) continue
+
+    const playerName = auth === p1Auth ? p1Name : p2Name
+    const eloResult = auth === p1Auth ? data.eloP1 : data.eloP2
+    const oldTier = (oldProfile as { arena_rank_tier: string }).arena_rank_tier
+    const newTier = eloResult.newTier
+
+    sends.push(sendMatchResult(email, {
+      playerName,
+      opponentName: oppName as string,
+      result: result as 'win' | 'loss' | 'draw',
+      score: score as number,
+      opponentScore: oppScore as number,
+      eloChange: eloResult.change,
+      newElo: eloResult.newElo,
+      newTier,
+      xpAwarded: xp as number,
+      challengeTitle: match.challenge?.title ?? 'Challenge',
+      matchId: match.id,
+    }))
+
+    // Rank-up email if tier changed
+    if (oldTier !== newTier && RANK_TIERS[newTier as RankTier]) {
+      sends.push(sendRankUp(email, {
+        playerName,
+        oldTier,
+        newTier,
+        newElo: eloResult.newElo,
+        xpBonus: 500,
+      }))
+    }
+  }
+
+  await Promise.allSettled(sends)
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { sendTeamInvite } from '@/lib/email/send'
 
 // POST — invite a player by username
 export async function POST(
@@ -64,15 +65,36 @@ export async function POST(
   if (alreadyInTeam) return NextResponse.json({ error: 'Player is already in a team' }, { status: 400 })
 
   // Create invite
-  const { error } = await supabase.from('arena_team_invites').insert({
+  const { data: invite, error } = await supabase.from('arena_team_invites').insert({
     team_id: team.id,
     invited_by: user.id,
     invitee_id: target.id,
-  })
+  }).select('id').single()
 
   if (error) {
     if (error.code === '23505') return NextResponse.json({ error: 'Invite already pending' }, { status: 400 })
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  // Send invite email (fire-and-forget)
+  const service = createServiceClient()
+  const [inviteeAuth, inviterProfile, teamData] = await Promise.all([
+    service.auth.admin.getUserById(target.id),
+    supabase.from('profiles').select('username, full_name').eq('id', user.id).single(),
+    supabase.from('arena_teams').select('name, tag, team_elo, slug').eq('id', team.id).single(),
+  ])
+
+  if (inviteeAuth.data?.user?.email && invite && teamData.data) {
+    const inviteeName = (await supabase.from('profiles').select('username, full_name').eq('id', target.id).single()).data
+    sendTeamInvite(inviteeAuth.data.user.email, {
+      inviteeName: (inviteeName as { username?: string; full_name?: string } | null)?.username ?? 'Player',
+      inviterName: (inviterProfile.data as { username?: string; full_name?: string } | null)?.username ?? 'Someone',
+      teamName: teamData.data.name,
+      teamTag: teamData.data.tag,
+      teamElo: teamData.data.team_elo,
+      teamSlug: teamData.data.slug,
+      inviteId: invite.id,
+    }).catch(() => {})
   }
 
   return NextResponse.json({ ok: true })

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { sendMatchResult, sendRankUp } from '@/lib/email/send'
+import { RANK_TIERS } from '@/types/arena'
+import type { RankTier } from '@/types/arena'
 import vm from 'vm'
 import type { TestCase, TestResult } from '../run-tests/route'
 
@@ -156,4 +159,32 @@ async function maybeFinalisCodeMatch(service: any, matchId: string, match: any) 
     service.from('profiles').update({ arena_elo: eloP1.newElo, arena_rank_tier: eloP1.newTier, arena_matches_played: p1Profile.arena_matches_played + 1, arena_wins: p1Profile.arena_wins + (p1Result === 'win' ? 1 : 0), arena_losses: p1Profile.arena_losses + (p1Result === 'loss' ? 1 : 0), arena_streak: p1Streak, total_xp: p1Profile.total_xp + xpP1 }).eq('id', match.player_one_id),
     service.from('profiles').update({ arena_elo: eloP2.newElo, arena_rank_tier: eloP2.newTier, arena_matches_played: p2Profile.arena_matches_played + 1, arena_wins: p2Profile.arena_wins + (p2Result === 'win' ? 1 : 0), arena_losses: p2Profile.arena_losses + (p2Result === 'loss' ? 1 : 0), arena_streak: p2Streak, total_xp: p2Profile.total_xp + xpP2 }).eq('id', match.player_two_id),
   ])
+
+  // Send result emails (fire-and-forget)
+  ;(async () => {
+    const [p1Auth, p2Auth, p1Prof, p2Prof, ch] = await Promise.all([
+      service.auth.admin.getUserById(match.player_one_id),
+      service.auth.admin.getUserById(match.player_two_id),
+      service.from('profiles').select('username, full_name').eq('id', match.player_one_id).single(),
+      service.from('profiles').select('username, full_name').eq('id', match.player_two_id).single(),
+      service.from('arena_challenges').select('title').eq('id', match.challenge_id).single(),
+    ])
+    const p1Name = p1Prof.data?.username ?? p1Prof.data?.full_name ?? 'Player'
+    const p2Name = p2Prof.data?.username ?? p2Prof.data?.full_name ?? 'Player'
+    const title = ch.data?.title ?? 'Challenge'
+
+    for (const [auth, result, score, oppScore, oppName, elo, xp, oldProfile, newEloData] of [
+      [p1Auth, p1Result, p1Score, p2Score, p2Name, eloP1, xpP1, p1Profile, eloP1],
+      [p2Auth, p2Result, p2Score, p1Score, p1Name, eloP2, xpP2, p2Profile, eloP2],
+    ] as const) {
+      const email = auth.data?.user?.email
+      if (!email) continue
+      const playerName = auth === p1Auth ? p1Name : p2Name
+      await sendMatchResult(email, { playerName, opponentName: oppName as string, result: result as 'win'|'loss'|'draw', score: score as number, opponentScore: oppScore as number, eloChange: (elo as typeof eloP1).change, newElo: (elo as typeof eloP1).newElo, newTier: (elo as typeof eloP1).newTier, xpAwarded: xp as number, challengeTitle: title, matchId }).catch(() => {})
+      const oldTier = (oldProfile as { arena_rank_tier: string }).arena_rank_tier
+      if (oldTier !== (elo as typeof eloP1).newTier && RANK_TIERS[(elo as typeof eloP1).newTier as RankTier]) {
+        await sendRankUp(email, { playerName, oldTier, newTier: (elo as typeof eloP1).newTier, newElo: (elo as typeof eloP1).newElo, xpBonus: 500 }).catch(() => {})
+      }
+    }
+  })().catch(() => {})
 }

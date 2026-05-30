@@ -2,6 +2,7 @@
 
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import type { GameMode, GameType, QueueGameType } from '@/types/arena'
+import { sendMatchFound } from '@/lib/email/send'
 
 export async function joinQueue(mode: GameMode, gameType: QueueGameType) {
   const supabase = await createClient()
@@ -153,5 +154,44 @@ async function attemptMatchmaking(
 
   if (updateError) {
     console.error('[matchmaking] queue update failed:', updateError.message)
+    return
+  }
+
+  // Fetch both players' emails via admin API (fire-and-forget)
+  const { data: p1Auth } = await service.auth.admin.getUserById(userId)
+  const { data: p2Auth } = await service.auth.admin.getUserById(opponent.user_id)
+
+  const { data: p1Profile } = await service.from('profiles').select('username, full_name').eq('id', userId).single()
+  const { data: p2Profile } = await service.from('profiles').select('username, full_name').eq('id', opponent.user_id).single()
+
+  const { data: challengeData } = await service.from('arena_challenges').select('title, time_limit_mins').eq('id', challenge.id).single()
+
+  const p1Name = p1Profile?.username ?? p1Profile?.full_name ?? 'Player'
+  const p2Name = p2Profile?.username ?? p2Profile?.full_name ?? 'Opponent'
+
+  if (p1Auth?.user?.email && challengeData) {
+    sendMatchFound(p1Auth.user.email, {
+      playerName: p1Name,
+      opponentName: p2Name,
+      opponentElo: opponent.elo,
+      challengeTitle: challengeData.title,
+      gameType: resolvedGameType,
+      mode,
+      timeLimitMins: challengeData.time_limit_mins,
+      matchId: match.id,
+    }).catch(() => {})
+  }
+
+  if (p2Auth?.user?.email && challengeData) {
+    sendMatchFound(p2Auth.user.email, {
+      playerName: p2Name,
+      opponentName: p1Name,
+      opponentElo: elo,
+      challengeTitle: challengeData.title,
+      gameType: resolvedGameType,
+      mode,
+      timeLimitMins: challengeData.time_limit_mins,
+      matchId: match.id,
+    }).catch(() => {})
   }
 }
