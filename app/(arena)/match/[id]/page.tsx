@@ -17,19 +17,13 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   // the opponent's row with the regular client
   const service = createServiceClient()
 
-  const { data: match, error: matchError } = await service
-    .from('arena_matches')
-    .select(`
-      *,
-      challenge:arena_challenges(*),
-      player_one:profiles!arena_matches_player_one_id_fkey(id, username, full_name, arena_elo, arena_rank_tier),
-      player_two:profiles!arena_matches_player_two_id_fkey(id, username, full_name, arena_elo, arena_rank_tier)
-    `)
-    .eq('id', id)
-    .single()
+  const [{ data: match }, { data: challenge }] = await Promise.all([
+    service.from('arena_matches').select('*').eq('id', id).single(),
+    service.from('arena_matches').select('challenge:arena_challenges(*)').eq('id', id).single(),
+  ])
 
-  if (matchError || !match) {
-    console.error('[match page] query failed:', matchError?.message, matchError?.code, 'id:', id, 'svcKeySet:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
+  if (!match) {
+    console.error('[match page] match not found, id:', id)
     notFound()
   }
 
@@ -38,14 +32,23 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     redirect('/lobby')
   }
 
-  const { data: submissions } = await service
-    .from('arena_submissions')
-    .select('*')
-    .eq('match_id', id)
+  // Fetch profiles and submissions separately (no cross-schema FK join)
+  const [{ data: p1Profile }, { data: p2Profile }, { data: submissions }] = await Promise.all([
+    service.from('profiles').select('id, username, full_name, arena_elo, arena_rank_tier').eq('id', match.player_one_id).single(),
+    service.from('profiles').select('id, username, full_name, arena_elo, arena_rank_tier').eq('id', match.player_two_id).single(),
+    service.from('arena_submissions').select('*').eq('match_id', id),
+  ])
+
+  const matchWithProfiles = {
+    ...match,
+    challenge: (challenge as { challenge?: unknown } | null)?.challenge ?? null,
+    player_one: p1Profile,
+    player_two: p2Profile,
+  }
 
   return (
     <MatchRoom
-      match={match}
+      match={matchWithProfiles}
       currentUserId={user!.id}
       initialSubmissions={submissions ?? []}
     />

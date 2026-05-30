@@ -11,18 +11,17 @@ export default async function SpectatePage({ params }: { params: Promise<{ id: s
   const { data: { user } } = await supabase.auth.getUser()
   const service = createServiceClient()
 
-  const { data: match } = await service
-    .from('arena_matches')
-    .select(`
-      *,
-      challenge:arena_challenges(*),
-      player_one:profiles!arena_matches_player_one_id_fkey(id, username, full_name, avatar_url, arena_elo, arena_rank_tier),
-      player_two:profiles!arena_matches_player_two_id_fkey(id, username, full_name, avatar_url, arena_elo, arena_rank_tier)
-    `)
-    .eq('id', id)
-    .single()
+  const { data: rawMatch } = await service.from('arena_matches').select('*').eq('id', id).single()
 
-  if (!match) notFound()
+  if (!rawMatch) notFound()
+
+  const [{ data: challengeRow }, { data: p1 }, { data: p2 }] = await Promise.all([
+    service.from('arena_challenges').select('*').eq('id', rawMatch.challenge_id).single(),
+    service.from('profiles').select('id, username, full_name, avatar_url, arena_elo, arena_rank_tier').eq('id', rawMatch.player_one_id).single(),
+    service.from('profiles').select('id, username, full_name, avatar_url, arena_elo, arena_rank_tier').eq('id', rawMatch.player_two_id).single(),
+  ])
+
+  const match = { ...rawMatch, challenge: challengeRow, player_one: p1, player_two: p2 }
 
   // If the viewer IS a player in this match, redirect to the match room
   if (user && (user.id === match.player_one_id || user.id === match.player_two_id)) {

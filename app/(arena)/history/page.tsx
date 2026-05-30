@@ -11,17 +11,37 @@ export default async function HistoryPage() {
   const { data: { user } } = await supabase.auth.getUser()
 
   const service = createServiceClient()
-  const { data: matches } = await service
+
+  // Fetch matches without profile joins (cross-schema FK not supported by PostgREST)
+  const { data: rawMatches } = await service
     .from('arena_matches')
-    .select(`
-      id, mode, game_type, status, winner_id, elo_change_p1, elo_change_p2, xp_awarded_p1, xp_awarded_p2, player_one_id, created_at,
-      challenge:arena_challenges(title, mode, difficulty),
-      player_one:profiles!arena_matches_player_one_id_fkey(id, username, full_name, arena_rank_tier),
-      player_two:profiles!arena_matches_player_two_id_fkey(id, username, full_name, arena_rank_tier)
-    `)
+    .select('id, mode, game_type, status, winner_id, elo_change_p1, elo_change_p2, xp_awarded_p1, xp_awarded_p2, player_one_id, player_two_id, created_at, challenge_id')
     .or(`player_one_id.eq.${user!.id},player_two_id.eq.${user!.id}`)
     .order('created_at', { ascending: false })
     .limit(50)
+
+  // Fetch unique profiles and challenges separately
+  const allUserIds = [...new Set((rawMatches ?? []).flatMap(m => [m.player_one_id, m.player_two_id]))]
+  const allChallengeIds = [...new Set((rawMatches ?? []).map(m => m.challenge_id).filter(Boolean))]
+
+  const [{ data: profiles }, { data: challenges }] = await Promise.all([
+    allUserIds.length > 0
+      ? service.from('profiles').select('id, username, full_name, arena_rank_tier').in('id', allUserIds)
+      : Promise.resolve({ data: [] }),
+    allChallengeIds.length > 0
+      ? service.from('arena_challenges').select('id, title, mode, difficulty').in('id', allChallengeIds)
+      : Promise.resolve({ data: [] }),
+  ])
+
+  const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
+  const challengeMap = Object.fromEntries((challenges ?? []).map(c => [c.id, c]))
+
+  const matches = (rawMatches ?? []).map(m => ({
+    ...m,
+    player_one: profileMap[m.player_one_id] ?? null,
+    player_two: profileMap[m.player_two_id] ?? null,
+    challenge: challengeMap[m.challenge_id] ?? null,
+  }))
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">

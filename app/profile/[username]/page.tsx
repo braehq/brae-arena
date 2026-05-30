@@ -37,18 +37,37 @@ export default async function ProfilePage({ params }: Props) {
 
   if (!profile) notFound()
 
-  const { data: recentMatches } = await service
+  const { data: rawMatches } = await service
     .from('arena_matches')
-    .select(`
-      id, mode, game_type, status, winner_id, created_at,
-      challenge:arena_challenges(title, difficulty),
-      player_one:profiles!arena_matches_player_one_id_fkey(id, username, full_name),
-      player_two:profiles!arena_matches_player_two_id_fkey(id, username, full_name)
-    `)
+    .select('id, mode, game_type, status, winner_id, created_at, player_one_id, player_two_id, challenge_id')
     .or(`player_one_id.eq.${profile.id},player_two_id.eq.${profile.id}`)
     .eq('status', 'complete')
     .order('created_at', { ascending: false })
     .limit(10)
+
+  const opponentIds = [...new Set((rawMatches ?? []).map(m =>
+    m.player_one_id === profile.id ? m.player_two_id : m.player_one_id
+  ))]
+  const challengeIds = [...new Set((rawMatches ?? []).map(m => m.challenge_id).filter(Boolean))]
+
+  const [{ data: opponents }, { data: challengeRows }] = await Promise.all([
+    opponentIds.length > 0
+      ? service.from('profiles').select('id, username, full_name').in('id', opponentIds)
+      : Promise.resolve({ data: [] }),
+    challengeIds.length > 0
+      ? service.from('arena_challenges').select('id, title, difficulty').in('id', challengeIds)
+      : Promise.resolve({ data: [] }),
+  ])
+
+  const opponentMap = Object.fromEntries((opponents ?? []).map(p => [p.id, p]))
+  const challengeMap = Object.fromEntries((challengeRows ?? []).map(c => [c.id, c]))
+
+  const recentMatches = (rawMatches ?? []).map(m => ({
+    ...m,
+    player_one: { id: m.player_one_id, ...((m.player_one_id === profile.id ? { username: profile.username, full_name: profile.full_name } : opponentMap[m.player_one_id])) },
+    player_two: { id: m.player_two_id, ...((m.player_two_id === profile.id ? { username: profile.username, full_name: profile.full_name } : opponentMap[m.player_two_id])) },
+    challenge: challengeMap[m.challenge_id] ?? null,
+  }))
 
   const displayName = profile.username ?? profile.full_name ?? 'Player'
   const wr = profile.arena_matches_played > 0

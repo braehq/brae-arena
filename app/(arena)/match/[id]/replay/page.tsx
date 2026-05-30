@@ -9,24 +9,21 @@ export default async function ReplayPage({ params }: { params: Promise<{ id: str
   const { id } = await params
   const supabase = createServiceClient()
 
-  const [{ data: match }, { data: events }, { data: submissions }] = await Promise.all([
-    supabase
-      .from('arena_matches')
-      .select('*, challenge:arena_challenges(title), player_one:profiles!arena_matches_player_one_id_fkey(username, full_name), player_two:profiles!arena_matches_player_two_id_fkey(username, full_name)')
-      .eq('id', id)
-      .single(),
-    supabase
-      .from('arena_match_events')
-      .select('*')
-      .eq('match_id', id)
-      .order('occurred_at', { ascending: true }),
-    supabase
-      .from('arena_submissions')
-      .select('*')
-      .eq('match_id', id),
+  const [{ data: rawMatch }, { data: events }, { data: submissions }] = await Promise.all([
+    supabase.from('arena_matches').select('*, challenge_id, player_one_id, player_two_id').eq('id', id).single(),
+    supabase.from('arena_match_events').select('*').eq('match_id', id).order('occurred_at', { ascending: true }),
+    supabase.from('arena_submissions').select('*').eq('match_id', id),
   ])
 
-  if (!match) notFound()
+  if (!rawMatch) notFound()
+
+  const [{ data: challengeRow }, { data: p1Profile }, { data: p2Profile }] = await Promise.all([
+    supabase.from('arena_challenges').select('title').eq('id', rawMatch.challenge_id).single(),
+    supabase.from('profiles').select('username, full_name').eq('id', rawMatch.player_one_id).single(),
+    supabase.from('profiles').select('username, full_name').eq('id', rawMatch.player_two_id).single(),
+  ])
+
+  const match = { ...rawMatch, challenge: challengeRow, player_one: p1Profile, player_two: p2Profile }
   if (match.status !== 'complete') {
     return (
       <div className="mx-auto max-w-2xl px-4 py-20 text-center">
