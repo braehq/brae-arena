@@ -53,6 +53,9 @@ export async function Header() {
           <Link href="/tournaments" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
             Tournaments
           </Link>
+          <Link href="/teams" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+            Teams
+          </Link>
           {user && (
             <Link href="/history" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
               History

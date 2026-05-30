@@ -210,6 +210,98 @@ export interface ArenaSpectator {
   left_at: string | null
 }
 
+// ─── Phase 3 Types ────────────────────────────────────────────────────────────
+
+export type TeamRole = 'owner' | 'captain' | 'member'
+export type TeamMatchFormat = '2v2' | '3v3'
+export type TeamMatchStatus = 'pending' | 'accepted' | 'active' | 'scoring' | 'complete' | 'cancelled' | 'draw'
+export type TeamInviteStatus = 'pending' | 'accepted' | 'declined'
+
+export interface ArenaTeam {
+  id: string
+  slug: string
+  name: string
+  tag: string
+  description: string | null
+  avatar_url: string | null
+  owner_id: string
+  team_elo: number
+  team_rank_tier: RankTier
+  team_wins: number
+  team_losses: number
+  team_matches_played: number
+  max_members: number
+  is_open: boolean
+  created_at: string
+  // joined
+  members?: ArenaTeamMember[]
+  member_count?: number
+}
+
+export interface ArenaTeamMember {
+  id: string
+  team_id: string
+  user_id: string
+  role: TeamRole
+  joined_at: string
+  // joined
+  profile?: Pick<ArenaProfile, 'username' | 'full_name' | 'avatar_url' | 'arena_elo' | 'arena_rank_tier' | 'country'>
+}
+
+export interface ArenaTeamInvite {
+  id: string
+  team_id: string
+  invited_by: string
+  invitee_id: string
+  status: TeamInviteStatus
+  created_at: string
+  // joined
+  team?: Pick<ArenaTeam, 'id' | 'name' | 'tag' | 'slug' | 'avatar_url'>
+  inviter?: Pick<ArenaProfile, 'username' | 'full_name'>
+}
+
+export interface ArenaTeamMatch {
+  id: string
+  challenge_id: string
+  team_one_id: string
+  team_two_id: string
+  format: TeamMatchFormat
+  status: TeamMatchStatus
+  started_at: string | null
+  ends_at: string | null
+  winner_team_id: string | null
+  team_one_score: number | null
+  team_two_score: number | null
+  elo_change_t1: number | null
+  elo_change_t2: number | null
+  challenged_by: string | null
+  created_at: string
+  // joined
+  challenge?: ArenaChallenge
+  team_one?: Pick<ArenaTeam, 'id' | 'name' | 'tag' | 'slug' | 'avatar_url' | 'team_elo' | 'team_rank_tier'>
+  team_two?: Pick<ArenaTeam, 'id' | 'name' | 'tag' | 'slug' | 'avatar_url' | 'team_elo' | 'team_rank_tier'>
+  players?: ArenaTeamMatchPlayer[]
+}
+
+export interface ArenaTeamMatchPlayer {
+  id: string
+  team_match_id: string
+  team_id: string
+  user_id: string
+  deployed_url: string | null
+  github_url: string | null
+  submitted_at: string | null
+  score_performance: number | null
+  score_accessibility: number | null
+  score_best_practices: number | null
+  score_seo: number | null
+  score_speed_bonus: number | null
+  score_total: number | null
+  scoring_status: ScoringStatus
+  // joined
+  profile?: Pick<ArenaProfile, 'username' | 'full_name' | 'avatar_url' | 'arena_rank_tier'>
+}
+
 export interface ArenaMatchEvent {
   id: string
   match_id: string
