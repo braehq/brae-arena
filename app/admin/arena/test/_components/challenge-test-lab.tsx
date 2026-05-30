@@ -41,6 +41,7 @@ function ChallengeRow({ challenge }: { challenge: Challenge }) {
   const [results, setResults] = useState<TestResult[]>([])
   const [running, setRunning] = useState(false)
   const [ran, setRan] = useState(false)
+  const [authError, setAuthError] = useState(false)
 
   const testCases = challenge.test_cases ?? []
   const passed = results.filter(r => r.passed).length
@@ -50,12 +51,18 @@ function ChallengeRow({ challenge }: { challenge: Challenge }) {
   async function runTests() {
     setRunning(true)
     setRan(false)
+    setAuthError(false)
     try {
       const res = await fetch('/api/arena/run-tests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, testCases }),
       })
+      if (res.status === 401) {
+        setAuthError(true)
+        setRunning(false)
+        return
+      }
       const data = await res.json()
       setResults(data.results ?? [])
       setRan(true)
@@ -69,6 +76,7 @@ function ChallengeRow({ challenge }: { challenge: Challenge }) {
     setCode(challenge.starter_code ?? '')
     setResults([])
     setRan(false)
+    setAuthError(false)
   }
 
   return (
@@ -134,7 +142,14 @@ function ChallengeRow({ challenge }: { challenge: Challenge }) {
                   {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                   Run {total} Tests
                 </button>
-                {ran && (
+                {authError && (
+                  <span className="text-sm text-amber-400 flex items-center gap-1.5">
+                    ⚠️ Session expired —{' '}
+                    <a href="/login" className="underline hover:text-amber-300">sign in again</a>
+                    {' '}then retry
+                  </span>
+                )}
+                {ran && !authError && (
                   <span className={`text-sm font-semibold ${allPassed ? 'text-green-400' : 'text-red-400'}`}>
                     {passed}/{total} passing
                   </span>
