@@ -37,7 +37,9 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { matchId, code } = await request.json()
+  // CSS Battle: client sends pre-validated results (DOM tests run in browser)
+  // Code Duel / Bug Hunt: server re-validates with vm sandbox
+  const { matchId, code, cssTestResults } = await request.json()
   if (!matchId || !code) return NextResponse.json({ error: 'matchId and code required' }, { status: 400 })
 
   const service = createServiceClient()
@@ -54,17 +56,25 @@ export async function POST(request: NextRequest) {
   }
 
   const { data: challenge } = await service.from('arena_challenges')
-    .select('test_cases, scoring_weights, challenge_type')
+    .select('id, test_cases, scoring_weights, challenge_type')
     .eq('id', match.challenge_id)
     .single()
 
   if (!challenge) return NextResponse.json({ error: 'Challenge not found' }, { status: 404 })
 
-  // Run tests server-side (source of truth, prevents client cheating)
   const testCases: TestCase[] = (challenge.test_cases as TestCase[]) ?? []
-  const testResults = runServerSide(code, testCases)
+  const isCssBattle = challenge.challenge_type === 'css_battle'
+
+  // CSS Battle: trust client-side DOM test results (no server-side browser available)
+  // Code Duel / Bug Hunt: re-run in vm sandbox server-side (prevents cheating)
+  let testResults: TestResult[]
+  if (isCssBattle && cssTestResults) {
+    testResults = cssTestResults as TestResult[]
+  } else {
+    testResults = runServerSide(code, testCases)
+  }
   const testsPassed = testResults.filter(r => r.passed).length
-  const testsTotal = testCases.length
+  const testsTotal = isCssBattle ? testCases.length : testCases.length
 
   // Score: 80% from tests, 20% speed bonus
   const testScore = testsTotal > 0 ? Math.round((testsPassed / testsTotal) * 80) : 0

@@ -9,6 +9,7 @@ import { CodeEditor } from '@/components/arena/code-editor'
 import { LivePreview } from '@/components/arena/live-preview'
 import { RankBadge } from '@/components/arena/rank-badge'
 import { runTestsClient, type TestResult } from '@/lib/test-runner/run-tests-client'
+import { runCssBattleTests } from '@/lib/css-battle-runner'
 import type { ArenaMatch, ArenaSubmission, RankTier } from '@/types/arena'
 
 interface TestCase { label: string; input: string; expected: string }
@@ -97,7 +98,9 @@ export function MatchRoomCode({ match, currentUserId, initialSubmissions }: Prop
     if (!testCases.length) return
     setRunning(true)
     try {
-      const results = await runTestsClient(code, testCases)
+      const results = isHtml
+        ? await runCssBattleTests(code, testCases)
+        : await runTestsClient(code, testCases)
       setTestResults(results)
     } catch (e) {
       toast.error('Test runner error: ' + String(e))
@@ -107,10 +110,20 @@ export function MatchRoomCode({ match, currentUserId, initialSubmissions }: Prop
 
   async function handleSubmit() {
     setSubmitting(true)
+    // For CSS Battle: run DOM tests first to get results to send to server
+    let finalResults = testResults
+    if (isHtml && testCases.length > 0 && testResults.length === 0) {
+      try { finalResults = await runCssBattleTests(code, testCases) } catch {}
+      setTestResults(finalResults)
+    }
     const res = await fetch('/api/arena/submit-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ matchId: match.id, code }),
+      body: JSON.stringify({
+        matchId: match.id,
+        code,
+        ...(isHtml ? { cssTestResults: finalResults } : {}),
+      }),
     })
     const data = await res.json()
     if (!res.ok) {

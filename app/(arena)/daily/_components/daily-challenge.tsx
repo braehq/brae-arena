@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Play, Send, CheckCircle, XCircle, Loader2, RefreshCw } from 'lucide-react'
 import { CodeEditor } from '@/components/arena/code-editor'
 import { runTestsClient, type TestResult } from '@/lib/test-runner/run-tests-client'
+import { runCssBattleTests } from '@/lib/css-battle-runner'
 import { secondsUntilReset } from '@/lib/daily-challenge'
 
 interface TestCase { label: string; input: string; expected: string }
@@ -58,9 +59,14 @@ export function DailyChallenge({ challenge, today, myAttempt: initialAttempt, us
     return () => clearInterval(t)
   }, [])
 
+  const isHtml = challenge.language === 'html'
+
   async function handleRunTests() {
     setRunning(true)
-    const results = await runTestsClient(code, testCases).catch(() => [])
+    const results = await (isHtml
+      ? runCssBattleTests(code, testCases)
+      : runTestsClient(code, testCases)
+    ).catch(() => [])
     setTestResults(results)
     setRunning(false)
   }
