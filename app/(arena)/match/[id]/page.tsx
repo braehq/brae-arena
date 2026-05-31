@@ -4,7 +4,20 @@ import { MatchRoom } from './_components/match-room'
 import { MatchRoomCode } from '@/components/arena/match-room-code'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'Match' }
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://arena.braehq.co'
+  const ogImage = `${appUrl}/api/og/match/${id}`
+  return {
+    title: 'Match — Brae Arena',
+    openGraph: {
+      title: 'Brae Arena — 1v1 Live Match',
+      description: 'Watch the result of this 1v1 coding battle on Brae Arena.',
+      images: [{ url: ogImage, width: 1200, height: 630 }],
+    },
+    twitter: { card: 'summary_large_image', images: [ogImage] },
+  }
+}
 
 export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params

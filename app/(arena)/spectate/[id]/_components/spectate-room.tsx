@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Eye, Clock, Trophy } from 'lucide-react'
+import { Eye, Clock, Trophy, Share2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { RankBadge } from '@/components/arena/rank-badge'
+import { MatchChat } from '@/components/arena/match-chat'
+import { toast } from 'sonner'
 import type { ArenaMatch, ArenaSubmission } from '@/types/arena'
 
 interface Props {
@@ -12,6 +14,8 @@ interface Props {
   submissions: ArenaSubmission[]
   spectatorCount: number
   userId: string | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  initialChat?: any[]
 }
 
 function formatTimeLeft(endsAt: string | null): string {
@@ -23,7 +27,7 @@ function formatTimeLeft(endsAt: string | null): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-export function SpectateRoom({ match, submissions: initialSubs, spectatorCount: initialCount, userId }: Props) {
+export function SpectateRoom({ match, submissions: initialSubs, spectatorCount: initialCount, userId, initialChat = [] }: Props) {
   const [matchState, setMatchState] = useState(match)
   const [submissions, setSubmissions] = useState(initialSubs)
   const [spectatorCount, setSpectatorCount] = useState(initialCount)
@@ -175,11 +179,31 @@ export function SpectateRoom({ match, submissions: initialSubs, spectatorCount: 
           </div>
         )}
 
-        {isComplete && (
-          <div className="mt-6 text-center">
-            <Link href="/leaderboard" className="text-sm text-primary hover:underline">← Back to Leaderboard</Link>
-          </div>
-        )}
+        {/* Share button */}
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(window.location.href)
+              toast.success('Link copied!')
+            }}
+            className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Share2 className="h-3.5 w-3.5" /> Share match
+          </button>
+          {isComplete && (
+            <Link href="/leaderboard" className="text-sm text-primary hover:underline">← Leaderboard</Link>
+          )}
+        </div>
+
+        {/* Chat */}
+        <div className="mt-6">
+          <MatchChat
+            matchId={match.id}
+            userId={userId}
+            initialMessages={initialChat}
+            readOnly={false}
+          />
+        </div>
       </div>
     </div>
   )

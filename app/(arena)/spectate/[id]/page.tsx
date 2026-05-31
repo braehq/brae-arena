@@ -54,12 +54,29 @@ export default async function SpectatePage({ params }: { params: Promise<{ id: s
     .select('*')
     .eq('match_id', id)
 
+  // Load initial chat messages
+  const { data: chatMessages } = await service
+    .from('arena_match_chat')
+    .select('id, user_id, message, created_at')
+    .eq('match_id', id)
+    .order('created_at', { ascending: true })
+    .limit(100)
+
+  // Enrich chat with profiles
+  const chatUserIds = [...new Set((chatMessages ?? []).map(m => m.user_id))]
+  const { data: chatProfiles } = chatUserIds.length > 0
+    ? await service.from('profiles').select('id, username, full_name, country, arena_rank_tier').in('id', chatUserIds)
+    : { data: [] }
+  const chatProfileMap = Object.fromEntries((chatProfiles ?? []).map(p => [p.id, p]))
+  const enrichedChat = (chatMessages ?? []).map(m => ({ ...m, profile: chatProfileMap[m.user_id] ?? undefined }))
+
   return (
     <SpectateRoom
       match={match}
       submissions={submissions ?? []}
       spectatorCount={spectatorCount ?? 0}
       userId={user?.id ?? null}
+      initialChat={enrichedChat}
     />
   )
 }

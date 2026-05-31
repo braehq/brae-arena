@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Play, Send, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { Play, Send, Clock, CheckCircle, XCircle, Loader2, Share2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { CodeEditor } from '@/components/arena/code-editor'
 import { LivePreview } from '@/components/arena/live-preview'
@@ -299,12 +299,21 @@ export function MatchRoomCode({ match, currentUserId, initialSubmissions }: Prop
                 {mySubmission.tests_passed ?? 0}/{mySubmission.tests_total ?? testCases.length} tests · {mySubmission.score_total ?? 0} pts
               </p>
             )}
-            <div className="flex gap-2 justify-center">
+            <div className="flex flex-wrap gap-2 justify-center">
               <button onClick={() => router.push('/lobby')} className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-white hover:opacity-90">
                 Play Again
               </button>
               <button onClick={() => router.push(`/match/${match.id}/replay`)} className="rounded-lg border border-border px-5 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
                 Replay
+              </button>
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}/match/${match.id}`
+                  navigator.clipboard.writeText(url).then(() => toast.success('Link copied to clipboard!'))
+                }}
+                className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+              >
+                <Share2 className="h-3.5 w-3.5" /> Share
               </button>
             </div>
           </div>

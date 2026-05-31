@@ -6,6 +6,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { GAME_TYPE_LABELS } from '@/types/arena'
 import { countryFlag } from '@/lib/country-flag'
+import { FollowButton } from './_components/follow-button'
 
 export const revalidate = 60
 
@@ -69,6 +70,17 @@ export default async function ProfilePage({ params }: Props) {
     challenge: challengeMap[m.challenge_id] ?? null,
   }))
 
+  // Follow state
+  const { data: { user: currentUser } } = await (await createClient()).auth.getUser()
+  const isOwnProfile = currentUser?.id === profile.id
+  const { count: followerCount } = await service
+    .from('arena_follows').select('id', { count: 'exact', head: true }).eq('following_id', profile.id)
+  const { count: followingCount } = await service
+    .from('arena_follows').select('id', { count: 'exact', head: true }).eq('follower_id', profile.id)
+  const isFollowing = currentUser && !isOwnProfile
+    ? !!(await service.from('arena_follows').select('id').eq('follower_id', currentUser.id).eq('following_id', profile.id).single()).data
+    : false
+
   const displayName = profile.username ?? profile.full_name ?? 'Player'
   const wr = profile.arena_matches_played > 0
     ? Math.round((profile.arena_wins / profile.arena_matches_played) * 100)
@@ -98,6 +110,13 @@ export default async function ProfilePage({ params }: Props) {
                   <span className="text-sm font-medium text-orange-400">🔥 {profile.arena_streak} win streak</span>
                 )}
                 <span className="text-xs text-muted-foreground">Member since {memberSince}</span>
+              </div>
+              <div className="mt-2 flex items-center gap-4">
+                <span className="text-sm text-muted-foreground"><strong className="text-foreground">{followerCount ?? 0}</strong> followers</span>
+                <span className="text-sm text-muted-foreground"><strong className="text-foreground">{followingCount ?? 0}</strong> following</span>
+                {!isOwnProfile && currentUser && (
+                  <FollowButton targetUserId={profile.id} initialFollowing={isFollowing} />
+                )}
               </div>
             </div>
           </div>
