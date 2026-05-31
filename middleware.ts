@@ -40,7 +40,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Protected arena routes
-  const protectedPaths = ['/lobby', '/queue', '/match', '/history', '/settings', '/admin']
+  const protectedPaths = ['/lobby', '/queue', '/match', '/history', '/settings', '/admin', '/agents/create', '/agents/[slug]/edit', '/agents/[slug]/queue']
   const isProtected = protectedPaths.some(p => pathname.startsWith(p))
   if (isProtected && !user) {
     const url = request.nextUrl.clone()

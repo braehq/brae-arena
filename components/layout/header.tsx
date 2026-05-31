@@ -57,6 +57,10 @@ export async function Header() {
           <Link href="/teams" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
             Teams
           </Link>
+          <Link href="/agents" className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+            <span>Agents</span>
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 leading-none">AI</span>
+          </Link>
           {user && (
             <Link href="/history" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
               History
