@@ -2,10 +2,10 @@
 
 import { AgentAvatar } from './agent-avatar'
 
-export const AGENT_EMOJIS = [
+// Quick-pick starters — users can also type any emoji
+export const STARTER_EMOJIS = [
   '🤖','🦾','🧠','🎯','⚡','🔥','🦊','🐺','🦅','🐉',
-  '💀','👾','🎪','🌊','⚔️','🛡️','🔬','🌙','☄️','🎭',
-  '🚀','🦁','🐯','🦈','🎲','💎','🔮','🌀','🎸','🏆',
+  '💀','👾','🚀','🦁','🦈','💎','🔮','🌀','⚔️','🏆',
 ]
 
 export const AGENT_COLORS = [
@@ -76,14 +76,38 @@ export function AgentCustomiseFields({
         </div>
       </div>
 
-      {/* Emoji picker */}
+      {/* Emoji picker — free-text + quick picks */}
       <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Avatar</label>
-        <div className="flex flex-wrap gap-2">
-          {AGENT_EMOJIS.map(e => (
+        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Avatar — any emoji</label>
+        <div className="flex items-center gap-3">
+          {/* Current selection — large */}
+          <div className="h-12 w-12 rounded-xl bg-secondary flex items-center justify-center text-3xl shrink-0 border border-border">
+            {emoji}
+          </div>
+          {/* Free-text input */}
+          <div className="flex-1">
+            <input
+              type="text"
+              value={emoji}
+              onChange={e => {
+                const val = [...e.target.value].filter(c => {
+                  const code = c.codePointAt(0) ?? 0
+                  return code > 127 // non-ASCII = emoji territory
+                })
+                if (val.length > 0) onEmojiChange(val[val.length - 1])
+              }}
+              placeholder="Paste or type any emoji…"
+              className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-colors"
+            />
+            <p className="mt-1 text-[10px] text-muted-foreground">Type, paste, or pick below. Any of the 3,600+ emojis work.</p>
+          </div>
+        </div>
+        {/* Quick picks */}
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {STARTER_EMOJIS.map(e => (
             <button key={e} type="button" onClick={() => onEmojiChange(e)}
-              className={`h-9 w-9 rounded-lg text-xl transition-all flex items-center justify-center hover:scale-110 ${
-                emoji === e ? 'ring-2 bg-primary/20 scale-110' : 'bg-secondary/60 hover:bg-secondary'
+              className={`h-8 w-8 rounded-lg text-lg transition-all flex items-center justify-center hover:scale-110 ${
+                emoji === e ? 'bg-primary/20 ring-1 ring-primary/50 scale-110' : 'bg-secondary/60 hover:bg-secondary'
               }`}>
               {e}
             </button>
