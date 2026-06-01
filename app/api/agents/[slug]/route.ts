@@ -7,7 +7,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { agent_code, description } = await request.json()
+  const { agent_code, description, avatar_emoji, color_accent, personality_tag, model_tag } = await request.json()
 
   const { data: agent } = await supabase.from('arena_agents').select('id, user_id').eq('slug', slug).single()
   if (!agent) return NextResponse.json({ error: 'Agent not found' }, { status: 404 })
@@ -20,6 +20,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
   const { error } = await supabase.from('arena_agents').update({
     ...(agent_code ? { agent_code } : {}),
     ...(description !== undefined ? { description } : {}),
+    ...(avatar_emoji ? { avatar_emoji } : {}),
+    ...(color_accent ? { color_accent } : {}),
+    ...(personality_tag !== undefined ? { personality_tag: personality_tag || null } : {}),
+    ...(model_tag ? { model_tag } : {}),
   }).eq('id', agent.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

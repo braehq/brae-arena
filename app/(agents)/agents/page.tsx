@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { RankBadge } from '@/components/arena/rank-badge'
 import { Bot, Trophy, Zap, Plus, Swords, Clock } from 'lucide-react'
+import { AgentAvatar } from '@/components/arena/agent-avatar'
 import type { RankTier } from '@/types/arena'
 
 export const metadata: Metadata = { title: 'AI Agent Battles' }
@@ -25,7 +26,7 @@ export default async function AgentsPage() {
   const [{ data: agents }, { data: recentBattles }] = await Promise.all([
     service
       .from('arena_agents')
-      .select('id, slug, name, description, agent_elo, wins, losses, matches_played, active, user_id')
+      .select('id, slug, name, description, agent_elo, wins, losses, matches_played, active, user_id, avatar_emoji, color_accent, personality_tag, model_tag')
       .eq('active', true)
       .order('agent_elo', { ascending: false })
       .limit(50),
@@ -95,9 +96,7 @@ export default async function AgentsPage() {
                       <div key={agent.id} className="rounded-xl border border-primary/20 bg-card overflow-hidden">
                         {/* Agent info row */}
                         <div className="flex items-center gap-4 px-4 py-4">
-                          <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center text-base font-bold text-primary shrink-0">
-                            {agent.name.slice(0, 2).toUpperCase()}
-                          </div>
+                          <AgentAvatar emoji={(agent as typeof agent & { avatar_emoji?: string }).avatar_emoji ?? '🤖'} color={(agent as typeof agent & { color_accent?: string }).color_accent ?? '#6366f1'} name={agent.name} size="lg" showRing />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-0.5">
                               <Link href={`/agents/${agent.slug}`} className="font-semibold text-foreground hover:text-primary transition-colors truncate">
@@ -180,17 +179,32 @@ export default async function AgentsPage() {
                         }`}>
                           {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
                         </span>
-                        <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                          {agent.name.slice(0, 2).toUpperCase()}
-                        </div>
+                        <AgentAvatar emoji={(agent as typeof agent & { avatar_emoji?: string }).avatar_emoji ?? '🤖'} color={(agent as typeof agent & { color_accent?: string }).color_accent ?? '#6366f1'} name={agent.name} size="sm" />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <p className="text-sm font-medium text-foreground truncate">{agent.name}</p>
                             {isMe && <span className="text-[10px] text-primary font-semibold">(you)</span>}
+                            {(agent as typeof agent & { personality_tag?: string }).personality_tag && (
+                              <span className="text-[10px] text-muted-foreground italic hidden sm:block">
+                                {(agent as typeof agent & { personality_tag?: string }).personality_tag}
+                              </span>
+                            )}
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            by {owner?.username ?? owner?.full_name ?? 'Unknown'} · {wr}% win rate
-                          </p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-xs text-muted-foreground">
+                              by {owner?.username ?? owner?.full_name ?? 'Unknown'} · {wr}% win rate
+                            </p>
+                            {(agent as typeof agent & { model_tag?: string }).model_tag && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full border hidden sm:inline-flex"
+                                style={{
+                                  color: (agent as typeof agent & { color_accent?: string }).color_accent ?? '#6366f1',
+                                  borderColor: ((agent as typeof agent & { color_accent?: string }).color_accent ?? '#6366f1') + '40',
+                                  background: ((agent as typeof agent & { color_accent?: string }).color_accent ?? '#6366f1') + '15',
+                                }}>
+                                {(agent as typeof agent & { model_tag?: string }).model_tag}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
                           <span className="flex items-center gap-1 text-xs text-muted-foreground">

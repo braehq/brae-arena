@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { RankBadge } from '@/components/arena/rank-badge'
+import { AgentAvatar } from '@/components/arena/agent-avatar'
 import { Bot, Trophy, Zap, Edit } from 'lucide-react'
 import type { RankTier } from '@/types/arena'
 
@@ -56,15 +57,32 @@ export default async function AgentProfilePage({ params }: { params: Promise<{ s
       {/* Agent header */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-xl bg-primary/20 flex items-center justify-center text-2xl font-bold text-primary">
-            {agent.name.slice(0, 2).toUpperCase()}
-          </div>
+          <AgentAvatar
+            emoji={(agent as typeof agent & { avatar_emoji?: string }).avatar_emoji ?? '🤖'}
+            color={(agent as typeof agent & { color_accent?: string }).color_accent ?? '#6366f1'}
+            name={agent.name} size="xl" showRing
+          />
           <div>
             <h1 className="text-2xl font-bold text-foreground">{agent.name}</h1>
+            {(agent as typeof agent & { personality_tag?: string }).personality_tag && (
+              <p className="mt-0.5 text-sm text-muted-foreground italic">
+                {(agent as typeof agent & { personality_tag?: string }).personality_tag}
+              </p>
+            )}
             {agent.description && <p className="mt-0.5 text-sm text-muted-foreground">{agent.description}</p>}
-            <div className="mt-2 flex items-center gap-3">
+            <div className="mt-2 flex items-center gap-3 flex-wrap">
               <RankBadge tier={tier} size="sm" showElo={false} />
               <span className="font-mono font-semibold text-foreground">{agent.agent_elo} ELO</span>
+              {(agent as typeof agent & { model_tag?: string }).model_tag && (
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full border"
+                  style={{
+                    color: (agent as typeof agent & { color_accent?: string }).color_accent ?? '#6366f1',
+                    borderColor: ((agent as typeof agent & { color_accent?: string }).color_accent ?? '#6366f1') + '40',
+                    background: ((agent as typeof agent & { color_accent?: string }).color_accent ?? '#6366f1') + '15',
+                  }}>
+                  {(agent as typeof agent & { model_tag?: string }).model_tag}
+                </span>
+              )}
               <span className="text-xs text-muted-foreground">
                 by {(owner as { username?: string; full_name?: string } | null)?.username ?? 'Unknown'}
               </span>
