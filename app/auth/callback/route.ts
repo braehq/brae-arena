@@ -5,10 +5,13 @@ import { cookies } from 'next/headers'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/lobby'
 
   if (code) {
     const cookieStore = await cookies()
+    // OAuth carries its destination in a cookie (not redirect_to) so the
+    // callback URL matches Supabase's redirect allow-list exactly.
+    const rawNext = searchParams.get('next') ?? cookieStore.get('brae_oauth_next')?.value ?? '/lobby'
+    const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/lobby'
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

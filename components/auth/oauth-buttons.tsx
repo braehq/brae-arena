@@ -33,7 +33,13 @@ export function OAuthButtons({ next = '/lobby' }: { next?: string }) {
     setError('')
     setLoading(provider)
     const supabase = createClient()
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`
+    // Carry the destination in a short-lived cookie instead of the redirect_to
+    // query string. Supabase matches the redirect allow-list exactly, and a
+    // '?next=' query makes the callback URL fail to match (email signup works
+    // precisely because it uses the bare /auth/callback URL with no query).
+    const secure = window.location.protocol === 'https:' ? '; secure' : ''
+    document.cookie = `brae_oauth_next=${encodeURIComponent(next)}; path=/; max-age=300; samesite=lax${secure}`
+    const redirectTo = `${window.location.origin}/auth/callback`
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: { redirectTo },
