@@ -30,38 +30,27 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // Forward auth code/token to /auth/callback
-  const code = request.nextUrl.searchParams.get('code')
-  const tokenHash = request.nextUrl.searchParams.get('token_hash')
-  if ((code || tokenHash) && pathname !== '/auth/callback') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/callback'
-    return NextResponse.redirect(url)
-  }
+  // Build the public origin from forwarded headers (Railway's internal host
+  // must not be used for redirects — it's unreachable from the browser).
+  const host = (request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? '').split(',')[0].trim()
+  const proto = (request.headers.get('x-forwarded-proto') ?? 'https').split(',')[0].trim()
+  const publicOrigin = host ? `${proto}://${host}` : request.nextUrl.origin
 
   // Protected arena routes
   const protectedPaths = ['/lobby', '/queue', '/match', '/history', '/settings', '/admin', '/agents/create', '/agents/[slug]/edit', '/agents/[slug]/queue']
   const isProtected = protectedPaths.some(p => pathname.startsWith(p))
   if (isProtected && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    url.searchParams.set('next', pathname)
-    return NextResponse.redirect(url)
+    return NextResponse.redirect(`${publicOrigin}/login?next=${encodeURIComponent(pathname)}`)
   }
 
   // Admin guard — role check happens in layout
   if (pathname.startsWith('/admin') && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    url.searchParams.set('next', pathname)
-    return NextResponse.redirect(url)
+    return NextResponse.redirect(`${publicOrigin}/login?next=${encodeURIComponent(pathname)}`)
   }
 
   // Redirect logged-in users away from auth pages
   if ((pathname === '/login' || pathname === '/signup') && user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/lobby'
-    return NextResponse.redirect(url)
+    return NextResponse.redirect(`${publicOrigin}/lobby`)
   }
 
   // OAuth users land without a username — make them finish onboarding before
@@ -73,11 +62,7 @@ export async function middleware(request: NextRequest) {
       .eq('id', user.id)
       .maybeSingle()
     if (!profile?.username) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/welcome'
-      url.search = ''
-      url.searchParams.set('next', pathname)
-      return NextResponse.redirect(url)
+      return NextResponse.redirect(`${publicOrigin}/welcome?next=${encodeURIComponent(pathname)}`)
     }
   }
 
