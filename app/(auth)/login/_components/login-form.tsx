@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { OAuthButtons } from '@/components/auth/oauth-buttons'
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -53,6 +54,8 @@ function LoginFormInner() {
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Sign in to Brae</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">Use your Brae account — same one as braehq.co</p>
         </div>
+
+        <OAuthButtons next={next} />
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1.5">

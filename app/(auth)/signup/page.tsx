@@ -8,6 +8,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { CountrySelect } from '@/components/country-select'
+import { OAuthButtons } from '@/components/auth/oauth-buttons'
 
 const schema = z.object({
   fullName: z.string().min(2, 'Enter your full name'),
@@ -26,6 +28,7 @@ function SignupFormInner() {
   const refCode = searchParams.get('ref')
   const [serverError, setServerError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [country, setCountry] = useState('')
 
   const { register, handleSubmit, setError, formState: { errors, isSubmitting } } = useForm<Fields>({
     resolver: zodResolver(schema),
@@ -54,6 +57,7 @@ function SignupFormInner() {
         data: {
           full_name: data.fullName,
           username: data.username,
+          ...(country ? { country } : {}),
           ...(refCode ? { referred_by: refCode } : {}),
         },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
@@ -105,6 +109,8 @@ function SignupFormInner() {
           <p className="mt-1.5 text-sm text-muted-foreground">One account. Works across the entire Brae platform.</p>
         </div>
 
+        <OAuthButtons next="/lobby" />
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground" htmlFor="fullName">Full name</label>
@@ -136,6 +142,12 @@ function SignupFormInner() {
             </div>
             <p className="text-xs text-muted-foreground">Shown on the Arena leaderboard.</p>
             {errors.username && <p className="text-xs text-destructive">{errors.username.message}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Country <span className="text-muted-foreground font-normal">(optional)</span></label>
+            <CountrySelect value={country} onChange={setCountry} />
+            <p className="text-xs text-muted-foreground">Your flag shows on the Arena leaderboard.</p>
           </div>
 
           <div className="space-y-1.5">

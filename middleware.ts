@@ -64,6 +64,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // OAuth users land without a username — make them finish onboarding before
+  // entering protected areas (defense-in-depth; the callback also sends them there).
+  if (user && isProtected) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('id', user.id)
+      .maybeSingle()
+    if (!profile?.username) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/welcome'
+      url.search = ''
+      url.searchParams.set('next', pathname)
+      return NextResponse.redirect(url)
+    }
+  }
+
   return supabaseResponse
 }
 

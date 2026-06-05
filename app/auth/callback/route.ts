@@ -27,6 +27,21 @@ export async function GET(request: Request) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
+      // OAuth signups (Google/GitHub) never chose a username — send them
+      // through onboarding before continuing. Email signups already have one.
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .maybeSingle()
+        if (!profile?.username) {
+          return NextResponse.redirect(`${origin}/welcome?next=${encodeURIComponent(next)}`)
+        }
+      }
       return NextResponse.redirect(`${origin}${next}`)
     }
   }
