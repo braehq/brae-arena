@@ -3,8 +3,16 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
+  const url = new URL(request.url)
+  const { searchParams } = url
   const code = searchParams.get('code')
+
+  // Behind Railway's proxy, request.url's host is the internal container
+  // (0.0.0.0:8080), so build redirects from the forwarded public host —
+  // otherwise the browser is sent to an unreachable address after auth.
+  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host')
+  const proto = request.headers.get('x-forwarded-proto') ?? 'https'
+  const origin = host ? `${proto}://${host}` : url.origin
 
   if (code) {
     const cookieStore = await cookies()
