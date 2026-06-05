@@ -1,61 +1,69 @@
-import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { NextResponse } from 'next/server'
+type PendingCookie = { name: string; value: string; options?: Record<string, unknown> }
 
 export async function GET(request: Request) {
-  const url = new URL(request.url)
-  const { searchParams } = url
+  const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
 
-  // Behind Railway's proxy, request.url's host is the internal container
-  // (0.0.0.0:8080), so build redirects from the forwarded public host —
-  // otherwise the browser is sent to an unreachable address after auth.
-  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host')
-  const proto = request.headers.get('x-forwarded-proto') ?? 'https'
-  const origin = host ? `${proto}://${host}` : url.origin
+  // Behind Railway's proxy request.url has host 0.0.0.0:8080 — build all
+  // redirects from the forwarded public host instead.
+  const host = (request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? '').split(',')[0].trim()
+  const proto = (request.headers.get('x-forwarded-proto') ?? 'https').split(',')[0].trim()
+  const origin = host ? `${proto}://${host}` : new URL(request.url).origin
 
-  if (code) {
-    const cookieStore = await cookies()
-    // OAuth carries its destination in a cookie (not redirect_to) so the
-    // callback URL matches Supabase's redirect allow-list exactly.
-    const rawNext = searchParams.get('next') ?? cookieStore.get('brae_oauth_next')?.value ?? '/lobby'
-    const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/lobby'
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() { return cookieStore.getAll() },
-          setAll(cookiesToSet) {
-            const domain = process.env.NODE_ENV === 'production' ? '.braehq.co' : undefined
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, { ...options, domain })
-            )
-          },
-        },
-      }
-    )
-
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      // OAuth signups (Google/GitHub) never chose a username — send them
-      // through onboarding before continuing. Email signups already have one.
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('id', user.id)
-          .maybeSingle()
-        if (!profile?.username) {
-          return NextResponse.redirect(`${origin}/welcome?next=${encodeURIComponent(next)}`)
-        }
-      }
-      return NextResponse.redirect(`${origin}${next}`)
-    }
+  if (!code) {
+    return NextResponse.redirect(`${origin}/login?error=auth`)
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth`)
+  const cookieStore = await cookies()
+  const domain = process.env.NODE_ENV === 'production' ? '.braehq.co' : undefined
+
+  // Collect cookies written during exchangeCodeForSession so we can attach
+  // them to the redirect response. In Next.js App Router, cookieStore.set()
+  // mutations don't automatically merge into a NextResponse.redirect().
+  const pendingCookies: PendingCookie[] = []
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return cookieStore.getAll() },
+        setAll(cookiesToSet) {
+          pendingCookies.push(...cookiesToSet)
+        },
+      },
+    }
+  )
+
+  function redirect(url: string) {
+    const res = NextResponse.redirect(url)
+    for (const { name, value, options } of pendingCookies) {
+      res.cookies.set(name, value, { ...options, ...(domain ? { domain } : {}) })
+    }
+    return res
+  }
+
+  const rawNext = searchParams.get('next') ?? cookieStore.get('brae_oauth_next')?.value ?? '/lobby'
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/lobby'
+
+  const { error } = await supabase.auth.exchangeCodeForSession(code)
+  if (!error) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (!profile?.username) {
+        return redirect(`${origin}/welcome?next=${encodeURIComponent(next)}`)
+      }
+    }
+    return redirect(`${origin}${next}`)
+  }
+
+  return redirect(`${origin}/login?error=auth`)
 }
