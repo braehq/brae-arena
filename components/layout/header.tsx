@@ -32,7 +32,7 @@ export async function Header() {
           <span className="hidden text-border md:block">|</span>
           <Link href="/" className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Brae" className="h-8 w-auto mix-blend-multiply dark:mix-blend-screen" />
+            <img src="/logo-mark.png" alt="Brae" className="h-6 w-auto mix-blend-multiply dark:mix-blend-screen" />
             <span className="font-semibold tracking-tight text-foreground">Arena</span>
           </Link>
         </div>
