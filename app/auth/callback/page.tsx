@@ -16,27 +16,57 @@ function CallbackHandler() {
     ran.current = true
 
     const supabase = createClient()
+    let settled = false
 
+    // Send the now-authenticated user onward: new OAuth users (no username
+    // yet) go to onboarding, everyone else into the app.
+    const routeForUser = async (userId: string) => {
+      if (settled) return
+      settled = true
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', userId)
+        .maybeSingle()
+      window.location.replace(profile?.username ? '/lobby' : '/welcome')
+    }
+
+    // The browser client exchanges the ?code= automatically. Depending on
+    // timing we either get SIGNED_IN after the exchange, OR an INITIAL_SESSION
+    // that already carries the session (when the exchange finished before this
+    // listener attached). Handle any event that has a session so we never get
+    // stuck on the spinner.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
+      (_event, session) => {
+        if (session) {
           subscription.unsubscribe()
-          // Check if new OAuth user needs to pick a username
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('username')
-            .eq('id', session.user.id)
-            .maybeSingle()
-          window.location.replace(profile?.username ? '/lobby' : '/welcome')
-        } else if (event === 'INITIAL_SESSION' && !session) {
-          // No code in URL or exchange failed
-          subscription.unsubscribe()
-          window.location.replace('/login?error=auth_failed')
+          routeForUser(session.user.id)
         }
       }
     )
 
-    return () => subscription.unsubscribe()
+    // Belt-and-suspenders: if the session was already established before the
+    // listener attached, no further event fires — pick it up directly.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        subscription.unsubscribe()
+        routeForUser(session.user.id)
+      }
+    })
+
+    // Genuine failure (no code / exchange failed): stop spinning after a grace
+    // period and send the user back to login.
+    const timeout = setTimeout(async () => {
+      if (settled) return
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) routeForUser(session.user.id)
+      else window.location.replace('/login?error=auth_failed')
+    }, 10000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
+    }
   }, [])
 
   return (
