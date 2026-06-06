@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 function CallbackHandler() {
@@ -26,7 +26,7 @@ function CallbackHandler() {
         // PKCE OAuth flow — browser client has the code verifier in storage
         const { error } = await supabase.auth.exchangeCodeForSession(code)
         if (error) {
-          router.replace('/login?error=auth_failed')
+          window.location.replace('/login?error=auth_failed')
           return
         }
         // Check if this is a new OAuth user without a username yet
@@ -42,7 +42,8 @@ function CallbackHandler() {
             return
           }
         }
-        router.replace(next ?? '/lobby')
+        // Full page navigation so the server sees the fresh session cookies
+        window.location.replace(next ?? '/lobby')
         return
       }
 
@@ -53,14 +54,14 @@ function CallbackHandler() {
           type: type as 'email' | 'recovery' | 'invite' | 'email_change',
         })
         if (error) {
-          router.replace('/login?error=auth_failed')
+          window.location.replace('/login?error=auth_failed')
           return
         }
-        router.replace(next ?? '/lobby')
+        window.location.replace(next ?? '/lobby')
         return
       }
 
-      router.replace('/login?error=auth_failed')
+      window.location.replace('/login?error=auth_failed')
     }
 
     handle()
