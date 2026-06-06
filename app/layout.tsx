@@ -9,7 +9,7 @@ const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin']
 
 export const metadata: Metadata = {
   title: { default: 'Brae Arena', template: '%s — Brae Arena' },
-  description: '1v1 competitive build battles. Queue, match, build, deploy, score. Climb the ranked ladder from Bronze to Mythic.',
+  description: 'Brae Arena is the competitive arena for AI builders. Battle head-to-head in timed 1v1 builds, climb the ranked leaderboard, and earn XP, badges and streaks.',
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://arena.braehq.co'),
 }
 
