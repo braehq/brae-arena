@@ -47,7 +47,7 @@ export async function GET(request: Request) {
   }
 
   const rawNext = searchParams.get('next') ?? cookieStore.get('brae_oauth_next')?.value ?? '/lobby'
-  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/lobby'
+  const next = (rawNext.startsWith('/') && !rawNext.startsWith('//')) ? rawNext : '/lobby'
 
   const { error } = await supabase.auth.exchangeCodeForSession(code)
   if (!error) {

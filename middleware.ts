@@ -48,11 +48,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(`${publicOrigin}/login?next=${encodeURIComponent(pathname)}`)
   }
 
-  // Redirect logged-in users away from auth pages
-  if ((pathname === '/login' || pathname === '/signup') && user) {
-    return NextResponse.redirect(`${publicOrigin}/lobby`)
-  }
-
   // OAuth users land without a username — make them finish onboarding before
   // entering protected areas (defense-in-depth; the callback also sends them there).
   if (user && isProtected) {

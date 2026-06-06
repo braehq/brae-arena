@@ -38,7 +38,9 @@ export function OAuthButtons({ next = '/lobby' }: { next?: string }) {
     // '?next=' query makes the callback URL fail to match (email signup works
     // precisely because it uses the bare /auth/callback URL with no query).
     const secure = window.location.protocol === 'https:' ? '; secure' : ''
-    document.cookie = `brae_oauth_next=${encodeURIComponent(next)}; path=/; max-age=300; samesite=lax${secure}`
+    // No encodeURIComponent — slashes are valid in cookie values and encoding
+    // breaks the startsWith('/') guard in the callback.
+    document.cookie = `brae_oauth_next=${next}; path=/; max-age=300; samesite=lax${secure}`
     const redirectTo = `${window.location.origin}/auth/callback`
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
