@@ -3,6 +3,7 @@ import { Header } from '@/components/layout/header'
 import { RankBadge } from '@/components/arena/rank-badge'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/server'
 
 const TIERS = ['bronze', 'silver', 'gold', 'platinum', 'diamond', 'mythic'] as const
 
@@ -41,7 +42,10 @@ const GAME_MODES = [
   },
 ]
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const playHref = user ? '/lobby' : '/signup'
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -68,7 +72,7 @@ export default function LandingPage() {
                 and ELO decides who's better. No setup. No deploys. Just code.
               </p>
               <div className="flex flex-wrap gap-3">
-                <Link href="/signup" className={cn(buttonVariants({ size: 'lg' }), 'text-base px-8')}>
+                <Link href={playHref} className={cn(buttonVariants({ size: 'lg' }), 'text-base px-8')}>
                   Play free →
                 </Link>
                 <Link href="/leaderboard" className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'text-base')}>
@@ -280,13 +284,15 @@ export default function LandingPage() {
           <p className="mb-8 text-muted-foreground">
             Free to play. No setup. Open your browser, queue up, and code.
           </p>
-          <Link href="/signup" className={cn(buttonVariants({ size: 'lg' }), 'text-base px-10')}>
-            Create your account
+          <Link href={playHref} className={cn(buttonVariants({ size: 'lg' }), 'text-base px-10')}>
+            {user ? 'Go to Lobby' : 'Create your account'}
           </Link>
-          <p className="mt-4 text-xs text-muted-foreground">
-            Already have a Brae account?{' '}
-            <Link href="/login" className="text-primary hover:underline">Sign in</Link>
-          </p>
+          {!user && (
+            <p className="mt-4 text-xs text-muted-foreground">
+              Already have a Brae account?{' '}
+              <Link href="/login" className="text-primary hover:underline">Sign in</Link>
+            </p>
+          )}
         </div>
       </section>
 
