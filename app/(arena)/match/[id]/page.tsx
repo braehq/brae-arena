@@ -2,6 +2,8 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import { MatchRoom } from './_components/match-room'
 import { MatchRoomCode } from '@/components/arena/match-room-code'
+import { MatchRoomRegex } from '@/components/arena/match-room-regex'
+import { MatchRoomCssGolf } from '@/components/arena/match-room-css-golf'
 import type { Metadata } from 'next'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -60,8 +62,48 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     player_two: p2Profile,
   }
 
-  const challengeData = (challenge as { challenge?: { challenge_type?: string } } | null)?.challenge
-  const isCodeChallenge = challengeData?.challenge_type && challengeData.challenge_type !== 'url_submit'
+  const challengeData = (challenge as { challenge?: { challenge_type?: string; solution_code?: string | null } } | null)?.challenge
+  const challengeType = challengeData?.challenge_type
+
+  // CSS Golf — self-contained engine. Strip the reference solution before it reaches the
+  // client; pass only its length as `par` for the golf meter.
+  if (challengeType === 'css_golf') {
+    const solution = challengeData?.solution_code ?? null
+    const safeChallenge = { ...(challengeData as Record<string, unknown>) }
+    delete safeChallenge.solution_code
+    const cssGolfMatch = {
+      ...matchWithProfiles,
+      challenge: { ...safeChallenge, parLength: typeof solution === 'string' ? solution.length : null },
+    }
+    return (
+      <MatchRoomCssGolf
+        match={cssGolfMatch as Parameters<typeof MatchRoomCssGolf>[0]['match']}
+        currentUserId={user!.id}
+        initialSubmissions={submissions ?? []}
+      />
+    )
+  }
+
+  // Regex Duel — self-contained engine. Strip the reference solution before it reaches the
+  // client; pass only its length as `par` for the golf meter.
+  if (challengeType === 'regex_duel') {
+    const solution = challengeData?.solution_code ?? null
+    const safeChallenge = { ...(challengeData as Record<string, unknown>) }
+    delete safeChallenge.solution_code
+    const regexMatch = {
+      ...matchWithProfiles,
+      challenge: { ...safeChallenge, parLength: typeof solution === 'string' ? solution.length : null },
+    }
+    return (
+      <MatchRoomRegex
+        match={regexMatch as Parameters<typeof MatchRoomRegex>[0]['match']}
+        currentUserId={user!.id}
+        initialSubmissions={submissions ?? []}
+      />
+    )
+  }
+
+  const isCodeChallenge = challengeType && challengeType !== 'url_submit'
 
   if (isCodeChallenge) {
     return (

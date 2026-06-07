@@ -1,6 +1,8 @@
 export type RankTier = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'mythic'
 export type GameMode = 'ranked' | 'casual'
 export type GameType = 'speed_build' | 'clone_battle' | 'bug_hunt'
+// The engine that renders + scores a challenge (independent of the lobby GameType bucket).
+export type ChallengeType = 'url_submit' | 'code_duel' | 'css_battle' | 'bug_hunt_code' | 'regex_duel' | 'css_golf'
 export type QueueGameType = GameType | 'any'
 export type MatchStatus = 'pending' | 'active' | 'scoring' | 'complete' | 'cancelled' | 'draw'
 export type QueueStatus = 'waiting' | 'matched' | 'cancelled'

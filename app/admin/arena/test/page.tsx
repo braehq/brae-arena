@@ -16,8 +16,8 @@ export default async function ChallengeTestPage() {
   const service = createServiceClient()
   const { data: challenges } = await service
     .from('arena_challenges')
-    .select('id, slug, title, challenge_type, difficulty, mode, starter_code, test_cases, language')
-    .in('challenge_type', ['code_duel', 'bug_hunt_code'])
+    .select('id, slug, title, description, challenge_type, difficulty, mode, starter_code, solution_code, test_cases, language, target_image_url')
+    .in('challenge_type', ['code_duel', 'bug_hunt_code', 'css_golf', 'regex_duel'])
     .order('challenge_type')
     .order('difficulty')
 
