@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import Image from 'next/image'
-import { CheckCircle, XCircle, Play, ChevronDown, ChevronRight, Loader2, RefreshCw } from 'lucide-react'
+import { CheckCircle, XCircle, Play, ChevronDown, ChevronRight, Loader2, RefreshCw, RotateCcw } from 'lucide-react'
 import { CodeEditor } from '@/components/arena/code-editor'
 import { runCssBattleTests, type CssTestCase } from '@/lib/css-battle-runner'
 import { runRegexTests, REGEX_FLAGS, type RegexFlag, type RegexCorpusItem } from '@/lib/regex-duel-runner'
@@ -27,6 +27,17 @@ interface Challenge {
 
 interface Props { challenges: Challenge[] }
 
+const STORAGE_KEY = 'arena-test-lab-verified'
+
+function loadVerified(): Set<string> {
+  if (typeof window === 'undefined') return new Set()
+  try { return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')) } catch { return new Set() }
+}
+
+function saveVerified(ids: Set<string>) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids])) } catch {}
+}
+
 const DIFF_COLORS: Record<string, string> = {
   easy: 'text-green-400 border-green-500/30 bg-green-500/10',
   medium: 'text-amber-400 border-amber-500/30 bg-amber-500/10',
@@ -34,9 +45,21 @@ const DIFF_COLORS: Record<string, string> = {
   extreme: 'text-purple-400 border-purple-500/30 bg-purple-500/10',
 }
 
-// ─── Code Duel / Bug Hunt row (server-side test runner) ───────────────────────
+function VerifiedBadge({ verified }: { verified: boolean }) {
+  return verified ? (
+    <span className="shrink-0 flex items-center gap-1 rounded-full border border-green-500/40 bg-green-500/10 px-2 py-0.5 text-[10px] font-semibold text-green-400">
+      <CheckCircle className="h-3 w-3" /> Verified
+    </span>
+  ) : (
+    <span className="shrink-0 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
+      Untested
+    </span>
+  )
+}
 
-function ChallengeRow({ challenge }: { challenge: Challenge }) {
+// ─── Code Duel / Bug Hunt row ─────────────────────────────────────────────────
+
+function ChallengeRow({ challenge, verified, onVerified }: { challenge: Challenge; verified: boolean; onVerified: () => void }) {
   const [open, setOpen] = useState(false)
   const [code, setCode] = useState(challenge.starter_code ?? '')
   const [results, setResults] = useState<TestResult[]>([])
@@ -48,6 +71,8 @@ function ChallengeRow({ challenge }: { challenge: Challenge }) {
   const passed = results.filter(r => r.passed).length
   const total = testCases.length
   const allPassed = ran && passed === total && total > 0
+
+  const icon = challenge.challenge_type === 'bug_hunt_code' ? '🐛' : '⚡'
 
   async function runTests() {
     setRunning(true)
@@ -61,17 +86,17 @@ function ChallengeRow({ challenge }: { challenge: Challenge }) {
       })
       if (res.status === 401) { setAuthError(true); setRunning(false); return }
       const data = await res.json()
-      setResults(data.results ?? [])
+      const r: TestResult[] = data.results ?? []
+      setResults(r)
       setRan(true)
+      if (r.length > 0 && r.every(x => x.passed)) onVerified()
     } catch (e) { console.error(e) }
     setRunning(false)
   }
 
-  const icon = challenge.challenge_type === 'bug_hunt_code' ? '🐛' : '⚡'
-
   return (
     <div className={`rounded-xl border overflow-hidden transition-colors ${
-      allPassed ? 'border-green-500/30' : ran && passed < total ? 'border-red-500/20' : 'border-border'
+      allPassed ? 'border-green-500/30' : ran && passed < total ? 'border-red-500/20' : verified ? 'border-green-500/20' : 'border-border'
     }`}>
       <button onClick={() => setOpen(o => !o)}
         className="w-full flex items-center gap-3 px-4 py-3 bg-card hover:bg-secondary/20 text-left transition-colors">
@@ -84,13 +109,10 @@ function ChallengeRow({ challenge }: { challenge: Challenge }) {
         <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${DIFF_COLORS[challenge.difficulty] ?? ''}`}>
           {challenge.difficulty}
         </span>
-        {ran ? (
+        <VerifiedBadge verified={verified} />
+        {ran && (
           <span className={`shrink-0 text-sm font-semibold ${allPassed ? 'text-green-400' : 'text-red-400'}`}>{passed}/{total}</span>
-        ) : (
-          <span className="shrink-0 text-xs text-muted-foreground">{total} tests</span>
         )}
-        {allPassed && <CheckCircle className="shrink-0 h-5 w-5 text-green-400" />}
-        {ran && !allPassed && <XCircle className="shrink-0 h-5 w-5 text-red-400" />}
       </button>
 
       {open && (
@@ -159,9 +181,7 @@ function ChallengeRow({ challenge }: { challenge: Challenge }) {
                       </div>
                     )
                   })}
-                  {testCases.length === 0 && (
-                    <p className="text-sm text-muted-foreground">No test cases.</p>
-                  )}
+                  {testCases.length === 0 && <p className="text-sm text-muted-foreground">No test cases.</p>}
                 </div>
               </div>
             </div>
@@ -172,9 +192,9 @@ function ChallengeRow({ challenge }: { challenge: Challenge }) {
   )
 }
 
-// ─── CSS Golf row (client-side DOM checks + live preview) ─────────────────────
+// ─── CSS Golf row ─────────────────────────────────────────────────────────────
 
-function CssGolfRow({ challenge }: { challenge: Challenge }) {
+function CssGolfRow({ challenge, verified, onVerified }: { challenge: Challenge; verified: boolean; onVerified: () => void }) {
   const [open, setOpen] = useState(false)
   const [html, setHtml] = useState(challenge.starter_code ?? '')
   const [liveHtml, setLiveHtml] = useState(challenge.starter_code ?? '')
@@ -193,9 +213,11 @@ function CssGolfRow({ challenge }: { challenge: Challenge }) {
     setRunning(true)
     setLiveHtml(html)
     const res = await runCssBattleTests(html, testCases)
-    setResults(res.map(r => ({ label: r.label, passed: r.passed })))
+    const mapped = res.map(r => ({ label: r.label, passed: r.passed }))
+    setResults(mapped)
     setRan(true)
     setRunning(false)
+    if (mapped.length > 0 && mapped.every(r => r.passed)) onVerified()
   }
 
   function reset() {
@@ -207,7 +229,7 @@ function CssGolfRow({ challenge }: { challenge: Challenge }) {
 
   return (
     <div className={`rounded-xl border overflow-hidden transition-colors ${
-      allPassed ? 'border-green-500/30' : ran && passed < total ? 'border-red-500/20' : 'border-border'
+      allPassed ? 'border-green-500/30' : ran && passed < total ? 'border-red-500/20' : verified ? 'border-green-500/20' : 'border-border'
     }`}>
       <button onClick={() => setOpen(o => !o)}
         className="w-full flex items-center gap-3 px-4 py-3 bg-card hover:bg-secondary/20 text-left transition-colors">
@@ -223,20 +245,15 @@ function CssGolfRow({ challenge }: { challenge: Challenge }) {
         {parLength !== null && (
           <span className="shrink-0 text-xs text-muted-foreground font-mono">par {parLength}</span>
         )}
-        {ran ? (
+        <VerifiedBadge verified={verified} />
+        {ran && (
           <span className={`shrink-0 text-sm font-semibold ${allPassed ? 'text-green-400' : 'text-red-400'}`}>{passed}/{total}</span>
-        ) : (
-          <span className="shrink-0 text-xs text-muted-foreground">{total} checks</span>
         )}
-        {allPassed && <CheckCircle className="shrink-0 h-5 w-5 text-green-400" />}
-        {ran && !allPassed && <XCircle className="shrink-0 h-5 w-5 text-red-400" />}
       </button>
 
       {open && (
         <div className="border-t border-border">
           <div className="grid lg:grid-cols-[1fr_420px] divide-y lg:divide-y-0 lg:divide-x divide-border">
-
-            {/* Left — editor */}
             <div className="flex flex-col" style={{ minHeight: 380 }}>
               <div className="flex items-center justify-between px-3 py-2 bg-[#1e1e1e] border-b border-zinc-700">
                 <span className="text-xs text-zinc-400 font-mono">index.html</span>
@@ -269,37 +286,23 @@ function CssGolfRow({ challenge }: { challenge: Challenge }) {
               </div>
             </div>
 
-            {/* Right — target + render + DOM check results */}
             <div className="flex flex-col divide-y divide-border">
-
-              {/* Previews side by side (scaled to fit) */}
               <div className="flex items-start gap-4 p-4 flex-wrap">
                 {challenge.target_image_url && (
                   <div className="text-center">
                     <p className="text-[10px] text-muted-foreground mb-1.5">Target</p>
-                    <Image
-                      src={challenge.target_image_url}
-                      alt="Target"
-                      width={200}
-                      height={150}
-                      className="rounded border border-border"
-                    />
+                    <Image src={challenge.target_image_url} alt="Target" width={200} height={150} className="rounded border border-border" />
                   </div>
                 )}
                 <div className="text-center">
                   <p className="text-[10px] text-muted-foreground mb-1.5">Your render</p>
                   <div className="rounded border border-border overflow-hidden" style={{ width: 200, height: 150 }}>
-                    <iframe
-                      srcDoc={liveHtml}
-                      sandbox="allow-scripts allow-same-origin"
-                      title="Live render"
-                      style={{ width: 400, height: 300, border: 0, transformOrigin: 'top left', transform: 'scale(0.5)' }}
-                    />
+                    <iframe srcDoc={liveHtml} sandbox="allow-scripts allow-same-origin" title="Live render"
+                      style={{ width: 400, height: 300, border: 0, transformOrigin: 'top left', transform: 'scale(0.5)' }} />
                   </div>
                 </div>
               </div>
 
-              {/* DOM check list */}
               <div className="overflow-y-auto p-3" style={{ maxHeight: 200 }}>
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">DOM Checks</p>
                 <div className="space-y-1.5">
@@ -327,9 +330,9 @@ function CssGolfRow({ challenge }: { challenge: Challenge }) {
   )
 }
 
-// ─── Regex Duel row (live client-side evaluation) ─────────────────────────────
+// ─── Regex Duel row ───────────────────────────────────────────────────────────
 
-function RegexDuelRow({ challenge }: { challenge: Challenge }) {
+function RegexDuelRow({ challenge, verified, onVerified }: { challenge: Challenge; verified: boolean; onVerified: () => void }) {
   const [open, setOpen] = useState(false)
   const [pattern, setPattern] = useState('')
   const [flags, setFlags] = useState<Set<RegexFlag>>(new Set())
@@ -343,13 +346,18 @@ function RegexDuelRow({ challenge }: { challenge: Challenge }) {
   const hasPattern = pattern.length > 0
   const allPassed = hasPattern && run.total > 0 && run.passed === run.total
 
+  // Auto-mark verified when all corpus items pass
+  useEffect(() => {
+    if (allPassed) onVerified()
+  }, [allPassed, onVerified])
+
   function toggleFlag(f: RegexFlag) {
     setFlags(prev => { const next = new Set(prev); if (next.has(f)) next.delete(f); else next.add(f); return next })
   }
 
   return (
     <div className={`rounded-xl border overflow-hidden transition-colors ${
-      allPassed ? 'border-green-500/30' : hasPattern && run.total > 0 ? 'border-red-500/20' : 'border-border'
+      allPassed ? 'border-green-500/30' : hasPattern && run.total > 0 ? 'border-red-500/20' : verified ? 'border-green-500/20' : 'border-border'
     }`}>
       <button onClick={() => setOpen(o => !o)}
         className="w-full flex items-center gap-3 px-4 py-3 bg-card hover:bg-secondary/20 text-left transition-colors">
@@ -362,64 +370,45 @@ function RegexDuelRow({ challenge }: { challenge: Challenge }) {
         <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${DIFF_COLORS[challenge.difficulty] ?? ''}`}>
           {challenge.difficulty}
         </span>
-        {hasPattern ? (
+        <VerifiedBadge verified={verified} />
+        {hasPattern && (
           <span className={`shrink-0 text-sm font-semibold ${allPassed ? 'text-green-400' : 'text-red-400'}`}>{run.passed}/{run.total}</span>
-        ) : (
-          <span className="shrink-0 text-xs text-muted-foreground">{corpus.length} items</span>
         )}
-        {allPassed && <CheckCircle className="shrink-0 h-5 w-5 text-green-400" />}
-        {hasPattern && !allPassed && run.total > 0 && <XCircle className="shrink-0 h-5 w-5 text-red-400" />}
       </button>
 
       {open && (
         <div className="border-t border-border">
           <div className="grid lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-border">
-
-            {/* Left — description + pattern input */}
             <div className="p-4 space-y-4">
               {challenge.description && (
                 <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{challenge.description}</p>
               )}
-
               <div>
                 <label className="text-xs text-muted-foreground block mb-1.5">Pattern (live evaluation)</label>
                 <div className="flex items-center gap-1 rounded-lg border border-border bg-[#1e1e1e] px-3 py-2 font-mono text-sm">
                   <span className="text-zinc-500 shrink-0">/</span>
-                  <input
-                    value={pattern}
-                    onChange={e => setPattern(e.target.value)}
-                    placeholder="your regex here"
+                  <input value={pattern} onChange={e => setPattern(e.target.value)} placeholder="your regex here"
                     className="flex-1 bg-transparent text-foreground outline-none placeholder:text-zinc-600 min-w-0"
-                    spellCheck={false}
-                    autoComplete="off"
-                  />
+                    spellCheck={false} autoComplete="off" />
                   <span className="text-zinc-500 shrink-0">/{flagStr}</span>
                 </div>
-                {hasPattern && run.error && (
-                  <p className="mt-1 text-xs text-red-400">{run.error}</p>
-                )}
+                {hasPattern && run.error && <p className="mt-1 text-xs text-red-400">{run.error}</p>}
               </div>
-
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">Flags:</span>
                 {REGEX_FLAGS.map(f => (
                   <button key={f} onClick={() => toggleFlag(f)}
                     className={`rounded px-2 py-0.5 text-xs font-mono border transition-colors ${
                       flags.has(f) ? 'border-primary/50 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'
-                    }`}>
-                    {f}
-                  </button>
+                    }`}>{f}</button>
                 ))}
               </div>
-
               {hasPattern && !run.error && (
                 <p className={`text-sm font-semibold ${allPassed ? 'text-green-400' : 'text-red-400'}`}>
                   {run.passed}/{run.total} passing
                 </p>
               )}
             </div>
-
-            {/* Right — corpus */}
             <div className="p-4 overflow-y-auto" style={{ maxHeight: 400 }}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -469,6 +458,22 @@ type FilterKey = 'all' | 'code_duel' | 'bug_hunt_code' | 'css_golf' | 'regex_due
 
 export function ChallengeTestLab({ challenges }: Props) {
   const [filter, setFilter] = useState<FilterKey>('all')
+  const [verified, setVerified] = useState<Set<string>>(loadVerified)
+
+  const markVerified = useCallback((id: string) => {
+    setVerified(prev => {
+      if (prev.has(id)) return prev
+      const next = new Set(prev)
+      next.add(id)
+      saveVerified(next)
+      return next
+    })
+  }, [])
+
+  function clearVerified() {
+    setVerified(new Set())
+    saveVerified(new Set())
+  }
 
   const counts = {
     code_duel: challenges.filter(c => c.challenge_type === 'code_duel').length,
@@ -477,9 +482,13 @@ export function ChallengeTestLab({ challenges }: Props) {
     regex_duel: challenges.filter(c => c.challenge_type === 'regex_duel').length,
   }
   const filtered = challenges.filter(c => filter === 'all' || c.challenge_type === filter)
+  const verifiedCount = challenges.filter(c => verified.has(c.id)).length
+  const total = challenges.length
+  const allDone = verifiedCount === total && total > 0
+  const pct = total > 0 ? Math.round((verifiedCount / total) * 100) : 0
 
   const tabs: Array<{ key: FilterKey; label: string }> = [
-    { key: 'all', label: `All (${challenges.length})` },
+    { key: 'all', label: `All (${total})` },
     { key: 'code_duel', label: `⚡ Code Duel (${counts.code_duel})` },
     { key: 'bug_hunt_code', label: `🐛 Bug Hunt (${counts.bug_hunt_code})` },
     { key: 'css_golf', label: `🏌️ CSS Golf (${counts.css_golf})` },
@@ -488,6 +497,59 @@ export function ChallengeTestLab({ challenges }: Props) {
 
   return (
     <div className="space-y-4">
+
+      {/* ── Verification progress bar ── */}
+      <div className={`rounded-xl border p-4 ${allDone ? 'border-green-500/30 bg-green-500/5' : 'border-border bg-card'}`}>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            {allDone
+              ? <CheckCircle className="h-5 w-5 text-green-400" />
+              : <div className="h-5 w-5 rounded-full border-2 border-amber-400 flex items-center justify-center">
+                  <div className="h-2 w-2 rounded-full bg-amber-400" />
+                </div>
+            }
+            <span className={`font-semibold text-sm ${allDone ? 'text-green-400' : 'text-foreground'}`}>
+              {allDone ? 'All challenges verified ✓' : `${verifiedCount} / ${total} verified`}
+            </span>
+            {!allDone && (
+              <span className="text-xs text-muted-foreground">({total - verifiedCount} still need testing)</span>
+            )}
+          </div>
+          {verifiedCount > 0 && (
+            <button onClick={clearVerified}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <RotateCcw className="h-3 w-3" /> Reset all
+            </button>
+          )}
+        </div>
+        {/* Progress bar */}
+        <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${allDone ? 'bg-green-500' : 'bg-amber-400'}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        {/* Per-type breakdown */}
+        <div className="mt-3 flex flex-wrap gap-3">
+          {(Object.entries(counts) as Array<[string, number]>).map(([type, typeTotal]) => {
+            const typeChallenges = challenges.filter(c => c.challenge_type === type)
+            const typeDone = typeChallenges.filter(c => verified.has(c.id)).length
+            const icon = { code_duel: '⚡', bug_hunt_code: '🐛', css_golf: '🏌️', regex_duel: '🔍' }[type] ?? '•'
+            const label = { code_duel: 'Code Duel', bug_hunt_code: 'Bug Hunt', css_golf: 'CSS Golf', regex_duel: 'Regex Duel' }[type] ?? type
+            return (
+              <div key={type} className="flex items-center gap-1.5 text-xs">
+                <span>{icon}</span>
+                <span className="text-muted-foreground">{label}:</span>
+                <span className={typeDone === typeTotal && typeTotal > 0 ? 'text-green-400 font-semibold' : 'text-foreground'}>
+                  {typeDone}/{typeTotal}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── Filter tabs ── */}
       <div className="flex items-center gap-2 flex-wrap">
         {tabs.map(({ key, label }) => (
           <button key={key} onClick={() => setFilter(key)}
@@ -501,17 +563,21 @@ export function ChallengeTestLab({ challenges }: Props) {
         ))}
       </div>
 
+      {/* ── Tip ── */}
       <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-300">
-        <strong>How to use:</strong> Code Duel / Bug Hunt — write a solution, hit Run Tests (server-side).
-        CSS Golf — write HTML, hit Run DOM Checks (client-side iframe), watch char count vs par.
-        Regex Duel — type a pattern; results update live.
+        <strong>How to use:</strong> Code Duel / Bug Hunt — write a solution, hit Run Tests.
+        CSS Golf — write HTML, hit Run DOM Checks, watch char count vs par.
+        Regex Duel — type a pattern; results update live. Each challenge auto-marks <strong>Verified</strong> when all checks pass.
       </div>
 
+      {/* ── Challenge rows ── */}
       <div className="space-y-2">
         {filtered.map(c => {
-          if (c.challenge_type === 'css_golf') return <CssGolfRow key={c.id} challenge={c} />
-          if (c.challenge_type === 'regex_duel') return <RegexDuelRow key={c.id} challenge={c} />
-          return <ChallengeRow key={c.id} challenge={c} />
+          const isVerified = verified.has(c.id)
+          const onVerified = () => markVerified(c.id)
+          if (c.challenge_type === 'css_golf') return <CssGolfRow key={c.id} challenge={c} verified={isVerified} onVerified={onVerified} />
+          if (c.challenge_type === 'regex_duel') return <RegexDuelRow key={c.id} challenge={c} verified={isVerified} onVerified={onVerified} />
+          return <ChallengeRow key={c.id} challenge={c} verified={isVerified} onVerified={onVerified} />
         })}
       </div>
     </div>
